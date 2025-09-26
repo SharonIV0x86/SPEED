@@ -11,6 +11,6 @@ int main(){
     std::cout << "Hello world\n";
     SPEED::SPEED spd("Jasper's", SPEED::ThreadMode::Multi);
     spd.setCallback(user_callback);
-    // spd.trigger();
+    spd.trigger();
     spd.addProcess("Lemon");
 }
