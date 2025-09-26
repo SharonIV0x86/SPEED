@@ -18,3 +18,4 @@ If you want to contribute make sure the code is clang formatted using.
 ```sh
 clang-format -i src/* && clang-format -i include/*
 ```
+- [ ] test

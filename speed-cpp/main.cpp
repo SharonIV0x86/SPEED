@@ -1,4 +1,6 @@
 #include <iostream>
+#include <thread>
+#include <chrono>
 #include "include/SPEED.hpp"
 
 void user_callback(const SPEED::PMessage& msg){
@@ -9,8 +11,11 @@ void user_callback(const SPEED::PMessage& msg){
 
 int main(){
     std::cout << "Hello world\n";
-    SPEED::SPEED spd("Jasper's", SPEED::ThreadMode::Multi);
+    SPEED::SPEED spd("Jaspers", SPEED::ThreadMode::Multi);
     spd.setCallback(user_callback);
     spd.trigger();
     spd.addProcess("Lemon");
+    spd.start();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+
 }

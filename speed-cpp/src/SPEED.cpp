@@ -1,5 +1,13 @@
-#include "../include/SPEED.hpp"
+#include "SPEED.hpp"
+#include <algorithm>
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <regex>
+#include <sstream>
+#include <thread>
+#include <vector>
 
 namespace SPEED {
 
@@ -8,38 +16,32 @@ SPEED::SPEED(const std::string &proc_name, const ThreadMode &tmode,
   self_proc_name_ = proc_name;
   tmode_ = tmode;
   speed_dir_ = speed_dir;
+  self_speed_dir_ = speed_dir_ / "comm";
 
   if (!Utils::directoryExists(speed_dir_)) {
-    std::cout << "[ERROR]: Speed Dir does not exist\n";
-    if (Utils::createDefaultDir(speed_dir_)) {
-      std::cout << "[INFO] Created Speed Dir\n";
-    }
-    return;
+    Utils::createDefaultDir(speed_dir_);
   }
 
-  std::cout << "[INFO]: Speed DIR: " << speed_dir_ << "\n";
+  if (!Utils::directoryExists(self_speed_dir_)) {
+    Utils::createDefaultDir(self_speed_dir_);
+  }
+
   if (!Utils::directoryExists(speed_dir_ / "access_registry")) {
-    std::cout << "[ERROR]: Registry dir doesn't exist \n";
-    if (Utils::createAccessRegistryDir(speed_dir_ / "access_registry")) {
-      std::cout << "[INFO]: Created Registry Dir\n";
-    }
+    Utils::createAccessRegistryDir(speed_dir_ / "access_registry");
   }
 
   access_list_ =
       std::make_unique<AccessRegistry>(speed_dir_ / "access_registry");
-  std::cout << "[INFO]: Registry Dir: " << access_list_->getAccessRegistryPath()
-            << "\n";
 }
 
 SPEED::SPEED(const std::string &proc_name, const ThreadMode &tmode)
     : SPEED(proc_name, tmode, Utils::getDefaultSPEEDDir()) {}
 
-bool SPEED::setKeyFile(const std::filesystem::path &key_path) {
-  if (!Utils::fileExists(key_path)) {
-    std::cout << "[ERROR]: Key Path doesn't exist\n";
-    return false;
-  }
+SPEED::~SPEED() { kill(); }
 
+bool SPEED::setKeyFile(const std::filesystem::path &key_path) {
+  if (!Utils::fileExists(key_path))
+    return false;
   std::lock_guard<std::mutex> lock(key_mutex_);
   key_ = KeyManager::getKeyFromConfigFile(key_path);
   key_path_ = key_path;
@@ -55,25 +57,128 @@ void SPEED::trigger() {
   std::function<void(const PMessage &)> cb_copy;
   {
     std::lock_guard<std::mutex> lock(callback_mutex_);
-    cb_copy = callback_; // copy the callback to call outside the lock
+    cb_copy = callback_;
   }
-
   if (cb_copy) {
-    PMessage msg("Lemon", "Hello lol", 69420);
+    PMessage msg("Lemon", "BING BONG", 69420);
     cb_copy(msg);
   }
 }
 
 void SPEED::addProcess(const std::string &proc_name) {
   std::lock_guard<std::mutex> lock(access_list_mutex_);
-  if (access_list_) {
+  if (access_list_)
     access_list_->addProcessToList(proc_name);
+}
+
+void SPEED::start() {
+  watcher_should_exit_.store(false);
+
+  if (watcher_running_.load())
+    return;
+
+  watcher_running_.store(true);
+
+  if (tmode_ == ThreadMode::Single) {
+    // In single-thread mode, run watcher in main loop (blocking for
+    // bare-metal/embedded)
+    watcherSingleThread_();
+  } else {
+    // Multi-thread mode: watcher runs in background thread
+    watcher_thread_ = std::thread([this]() { watcherMultiThread_(); });
+    watcher_thread_.detach();
+  }
+}
+
+void SPEED::stop() { watcher_should_exit_.store(true); }
+
+void SPEED::resume() {
+  if (tmode_ == ThreadMode::Multi && !watcher_running_.load()) {
+    start();
+  }
+}
+
+void SPEED::kill() {
+  watcher_should_exit_.store(true);
+  watcher_running_.store(false);
+}
+
+void SPEED::sendMessage() {
+  seq_number_.fetch_add(1, std::memory_order_relaxed);
+}
+
+std::optional<long long>
+SPEED::extractSeqFromFilename_(const std::string &filename) const {
+  static const std::regex re("(\\d+)\\.ospeed$");
+  std::smatch m;
+  if (std::regex_search(filename, m, re) && m.size() >= 2) {
+    try {
+      return std::stoll(m[1].str());
+    } catch (...) {
+      return std::nullopt;
+    }
+  }
+  return std::nullopt;
+}
+
+void SPEED::processFile_(const std::filesystem::path &file_path) {
+  std::cout << "[INFO]: Got file: " << file_path << "\n";
+  // std::ifstream ifs(file_path, std::ios::binary);
+  // if (!ifs)
+  //   return;
+  // std::ostringstream ss;
+  // ss << ifs.rdbuf();
+  // Message msg;
+  // processIncomingMessage_(msg);
+  std::error_code ec;
+  std::filesystem::remove(file_path, ec);
+}
+
+void SPEED::watcherSingleThread_() {
+  std::cout << "[INFO]: Starting Single-Thread Blocking Watcher\n";
+  while (!watcher_should_exit_.load()) {
+    std::vector<std::pair<long long, std::filesystem::path>> candidates;
+    for (auto &entry : std::filesystem::directory_iterator(self_speed_dir_)) {
+      if (!entry.is_regular_file())
+        continue;
+      auto seq = extractSeqFromFilename_(entry.path().filename().string());
+      if (seq)
+        candidates.emplace_back(*seq, entry.path());
+    }
+    if (!candidates.empty()) {
+      std::sort(candidates.begin(), candidates.end(),
+                [](auto &a, auto &b) { return a.first < b.first; });
+      processFile_(candidates.front().second);
+      continue;
+    }
+    // Sleep to avoid busy loop; can be replaced by event-driven in embedded
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  }
+}
+
+void SPEED::watcherMultiThread_() {
+  std::cout << "[INFO]: Starting Multi-Thread Non-Blocking Watcher\n";
+  while (!watcher_should_exit_.load()) {
+    std::vector<std::pair<long long, std::filesystem::path>> candidates;
+    for (auto &entry : std::filesystem::directory_iterator(self_speed_dir_)) {
+      if (!entry.is_regular_file())
+        continue;
+      auto seq = extractSeqFromFilename_(entry.path().filename().string());
+      if (seq)
+        candidates.emplace_back(*seq, entry.path());
+    }
+    if (!candidates.empty()) {
+      std::sort(candidates.begin(), candidates.end(),
+                [](auto &a, auto &b) { return a.first < b.first; });
+      processFile_(candidates.front().second);
+      continue;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
 }
 
 void SPEED::processIncomingMessage_(const Message &message) {
-  // validation and handling here
-  // acquire locks if modifying callback_, access_list_, key_, etc.
+  (void)message; // placeholder
 }
 
 } // namespace SPEED
