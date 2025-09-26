@@ -1,0 +1,5 @@
+*.out
+*.key
+.vscode/*
+*.bin
+speed-cpp/app
