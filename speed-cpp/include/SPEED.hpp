@@ -1,6 +1,8 @@
 #pragma once
 #include "AccessRegistry.hpp"
+#include "BinaryManager.hpp"
 #include "BinaryMessage.hpp"
+#include "Constants.hpp"
 #include "KeyManager.hpp"
 #include "Utils.hpp"
 
@@ -37,7 +39,8 @@ public:
   void setCallback(std::function<void(const PMessage &)> cb);
   void trigger();
   void addProcess(const std::string &);
-
+  void mockWrite(); // just test reading and writing
+  Message mockRead();
   ~SPEED();
 
 private:

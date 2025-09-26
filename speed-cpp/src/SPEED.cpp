@@ -30,8 +30,8 @@ SPEED::SPEED(const std::string &proc_name, const ThreadMode &tmode,
     Utils::createAccessRegistryDir(speed_dir_ / "access_registry");
   }
 
-  access_list_ =
-      std::make_unique<AccessRegistry>(speed_dir_ / "access_registry", proc_name);
+  access_list_ = std::make_unique<AccessRegistry>(
+      speed_dir_ / "access_registry", proc_name);
 }
 
 SPEED::SPEED(const std::string &proc_name, const ThreadMode &tmode)
@@ -181,5 +181,23 @@ void SPEED::watcherMultiThread_() {
 void SPEED::processIncomingMessage_(const Message &message) {
   (void)message; // placeholder
 }
-
+void SPEED::mockWrite() {
+  Message msg;
+  const std::string m = "I love biryani (veg)";
+  msg.header.version = SPEED_VERSION;
+  msg.header.type = MessageType::MSG;
+  msg.header.sender_pid = 192;
+  msg.header.timestamp = std::stoull(Utils::getCurrentTimestamp());
+  msg.header.seq_num = seq_number_;
+  msg.header.sender = self_proc_name_;
+  msg.header.reciever = "Murphys";
+  msg.payload = std::vector<uint8_t>(m.begin(), m.end());
+  bool status = BinaryManager::writeBinary(msg, speed_dir_, seq_number_);
+  if (status)
+    seq_number_.fetch_add(1);
+}
+Message SPEED::mockRead() {
+  std::filesystem::path pth = speed_dir_ / "0.ospeed";
+  return BinaryManager::readBinary(pth);
+}
 } // namespace SPEED
