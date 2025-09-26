@@ -7,10 +7,14 @@ Currently we are focusing on the C++ binding for the MVP and then we will move t
 
 ### To compile C++ Code.
 Move to ``speed-cpp`` folder.
-> cd speed-cpp
-
+```sh
+cd speed-cpp
+```
 Compile the ``main.cpp`` and run the ``app`` binary.
-> g++ -Iinclude main.cpp src/*.cpp -o app
-
+```sh
+g++ -Iinclude main.cpp src/*.cpp -o app
+```
 If you want to contribute make sure the code is clang formatted using.
-> clang-format -i src/* && clang-format -i include/*
+```sh
+clang-format -i src/* && clang-format -i include/*
+```
