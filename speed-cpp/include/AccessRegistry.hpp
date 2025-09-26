@@ -1,14 +1,16 @@
 #pragma once
+#include "Utils.hpp"
+#include <cstdio>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <unordered_set>
-
 namespace SPEED {
-
 class AccessRegistry {
 public:
-  AccessRegistry(const std::filesystem::path &path);
+  AccessRegistry(const std::filesystem::path &, const std::string &);
 
   void addProcessToList(const std::string &proc_name);
   bool removeProcessFromList(const std::string &proc_name);
@@ -17,10 +19,16 @@ public:
 private:
   bool checkAccess(const std::string &proc_name) const;
   bool checkGlobalRegistry(const std::string &proc_name) const;
+  void putAccessFile();
+  void removeAccessFile();
   void incrementalBuildGlobalRegistry();
-  std::unordered_set<std::string> allowedProcesses_; // subscribed processes
-  std::unordered_set<std::string> global_registry_;  // all known processes
+
+  std::unordered_set<std::string> allowedProcesses_;
+  std::unordered_set<std::string> global_registry_;
   std::filesystem::path ac_path_;
+  std::string access_filename_;
+
+  mutable std::mutex mtx_; // protects shared state
 };
 
 } // namespace SPEED

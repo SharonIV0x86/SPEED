@@ -15,6 +15,7 @@ int main(){
     spd.setCallback(user_callback);
     spd.trigger();
     spd.addProcess("Lemon");
+    spd.setKeyFile("config.key");
     spd.start();
     std::this_thread::sleep_for(std::chrono::milliseconds(1200));
 

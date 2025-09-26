@@ -16,7 +16,7 @@ SPEED::SPEED(const std::string &proc_name, const ThreadMode &tmode,
   self_proc_name_ = proc_name;
   tmode_ = tmode;
   speed_dir_ = speed_dir;
-  self_speed_dir_ = speed_dir_ / "comm";
+  self_speed_dir_ = speed_dir_ / proc_name;
 
   if (!Utils::directoryExists(speed_dir_)) {
     Utils::createDefaultDir(speed_dir_);
@@ -31,7 +31,7 @@ SPEED::SPEED(const std::string &proc_name, const ThreadMode &tmode,
   }
 
   access_list_ =
-      std::make_unique<AccessRegistry>(speed_dir_ / "access_registry");
+      std::make_unique<AccessRegistry>(speed_dir_ / "access_registry", proc_name);
 }
 
 SPEED::SPEED(const std::string &proc_name, const ThreadMode &tmode)
@@ -44,6 +44,7 @@ bool SPEED::setKeyFile(const std::filesystem::path &key_path) {
     return false;
   std::lock_guard<std::mutex> lock(key_mutex_);
   key_ = KeyManager::getKeyFromConfigFile(key_path);
+  std::cout << "[INFO]: Retrieved Key: " << key_ << "\n";
   key_path_ = key_path;
   return true;
 }

@@ -79,16 +79,16 @@ bool createDefaultDir(const std::filesystem::path &base_dir) {
   }
   return false;
 }
-bool createAccessRegistryDir(const std::filesystem::path &base_dir) {
+bool createAccessRegistryDir(const std::filesystem::path &ac_dir) {
   try {
-    if (!std::filesystem::exists(base_dir)) {
-      if (std::filesystem::create_directories(base_dir)) {
+    if (!std::filesystem::exists(ac_dir)) {
+      if (std::filesystem::create_directories(ac_dir)) {
         return true;
       } else {
         return false;
       }
     } else {
-      std::cout << "Directory already exists: " << base_dir << "\n";
+      std::cout << "Directory already exists: " << ac_dir << "\n";
     }
   } catch (const std::exception &e) {
     std::cerr << "Error creating directory: " << e.what() << "\n";
