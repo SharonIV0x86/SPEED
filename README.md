@@ -18,4 +18,8 @@ If you want to contribute make sure the code is clang formatted using.
 ```sh
 clang-format -i src/* && clang-format -i include/*
 ```
-- [ ] test
+
+## Identified Tasks
+Below are some identified tasks which need to be done.
+- [ ] Add logic for traversing ``speed_dir_/access_registry``.
+- [ ] Add logic for checking for existence and creation of ``access_registry`` folder.
