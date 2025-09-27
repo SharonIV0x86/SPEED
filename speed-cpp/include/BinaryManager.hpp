@@ -5,9 +5,9 @@
 #include <atomic>
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <string>
-#include <fstream>
 namespace SPEED {
 
 class BinaryManager {

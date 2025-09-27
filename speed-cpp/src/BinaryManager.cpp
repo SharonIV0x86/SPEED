@@ -34,13 +34,13 @@ Message BinaryManager::readBinary(const std::filesystem::path &path) {
     throw std::runtime_error("Failed to open file");
 
   Message msg;
-  msg.header.version    = read_uint<uint8_t>(in);
-  msg.header.type       = static_cast<MessageType>(read_uint<uint8_t>(in));
+  msg.header.version = read_uint<uint8_t>(in);
+  msg.header.type = static_cast<MessageType>(read_uint<uint8_t>(in));
   msg.header.sender_pid = read_uint<uint32_t>(in);
-  msg.header.timestamp  = read_uint<uint64_t>(in);
-  msg.header.seq_num    = read_uint<uint64_t>(in);
-  msg.header.sender     = read_string(in);
-  msg.header.reciever   = read_string(in);
+  msg.header.timestamp = read_uint<uint64_t>(in);
+  msg.header.seq_num = read_uint<uint64_t>(in);
+  msg.header.sender = read_string(in);
+  msg.header.reciever = read_string(in);
 
   uint32_t len = read_uint<uint32_t>(in);
   msg.payload.resize(len);

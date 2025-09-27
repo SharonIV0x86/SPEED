@@ -15,11 +15,11 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <queue>
 #include <regex>
 #include <sstream>
 #include <thread>
 #include <vector>
-
 namespace SPEED {
 
 enum class ThreadMode { Single = 0, Multi = 1 };
@@ -59,6 +59,11 @@ private:
   std::mutex callback_mutex_;
   std::mutex access_list_mutex_;
   std::mutex key_mutex_;
+  std::mutex seen_mutex_;
+  std::mutex heap_mutex_;
+  std::mutex single_mtx_;
+  std::mutex multi_mutex_;
+  std::mutex write_mutex_;
 
   std::thread watcher_thread_;
   std::atomic<bool> watcher_running_{false};
@@ -74,6 +79,16 @@ private:
   void processFile_(const std::filesystem::path &file_path);
   std::optional<long long>
   extractSeqFromFilename_(const std::string &filename) const;
+
+  using FileCandidate = std::pair<long long, std::filesystem::path>;
+  struct CompareSeq {
+    bool operator()(const FileCandidate &a, const FileCandidate &b) const {
+      return a.first > b.first; // min-heap by seq
+    }
+  };
+  std::priority_queue<FileCandidate, std::vector<FileCandidate>, CompareSeq>
+      heap_;
+  std::unordered_set<std::string> seen_; // to avoid reinserting same file
 };
 
 } // namespace SPEED

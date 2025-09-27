@@ -105,6 +105,7 @@ void SPEED::kill() {
 }
 
 void SPEED::sendMessage() {
+  // this is just for test here
   seq_number_.fetch_add(1, std::memory_order_relaxed);
 }
 
@@ -136,52 +137,70 @@ void SPEED::processFile_(const std::filesystem::path &file_path) {
 }
 
 void SPEED::watcherSingleThread_() {
+  std::lock_guard<std::mutex> lock(single_mtx_);
   std::cout << "[INFO]: Starting Single-Thread Blocking Watcher\n";
+
   while (!watcher_should_exit_.load()) {
-    std::vector<std::pair<long long, std::filesystem::path>> candidates;
     for (auto &entry : std::filesystem::directory_iterator(self_speed_dir_)) {
       if (!entry.is_regular_file())
         continue;
-      auto seq = extractSeqFromFilename_(entry.path().filename().string());
-      if (seq)
-        candidates.emplace_back(*seq, entry.path());
+
+      std::string fname = entry.path().filename().string();
+
+      if (seen_.count(fname))
+        continue;
+
+      auto seq = extractSeqFromFilename_(fname);
+      if (seq) {
+        heap_.emplace(*seq, entry.path());
+        seen_.insert(fname);
+      }
     }
-    if (!candidates.empty()) {
-      std::sort(candidates.begin(), candidates.end(),
-                [](auto &a, auto &b) { return a.first < b.first; });
-      processFile_(candidates.front().second);
+    if (!heap_.empty()) {
+      auto candidate = heap_.top();
+      heap_.pop();
+      seen_.erase(candidate.second.filename().string());
+
+      processFile_(candidate.second);
       continue;
     }
-    // Sleep to avoid busy loop; can be replaced by event-driven in embedded
+
+    // Nothing to do → sleep
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
 }
-
 void SPEED::watcherMultiThread_() {
+  std::lock_guard<std::mutex> lock(multi_mutex_);
   std::cout << "[INFO]: Starting Multi-Thread Non-Blocking Watcher\n";
   while (!watcher_should_exit_.load()) {
-    std::vector<std::pair<long long, std::filesystem::path>> candidates;
     for (auto &entry : std::filesystem::directory_iterator(self_speed_dir_)) {
       if (!entry.is_regular_file())
         continue;
-      auto seq = extractSeqFromFilename_(entry.path().filename().string());
-      if (seq)
-        candidates.emplace_back(*seq, entry.path());
+
+      auto fname = entry.path().filename().string();
+      if (seen_.count(fname))
+        continue;
+
+      auto seq = extractSeqFromFilename_(fname);
+      if (seq) {
+        heap_.emplace(*seq, entry.path());
+        seen_.insert(fname);
+      }
     }
-    if (!candidates.empty()) {
-      std::sort(candidates.begin(), candidates.end(),
-                [](auto &a, auto &b) { return a.first < b.first; });
-      processFile_(candidates.front().second);
+    if (!heap_.empty()) {
+      auto [seq, path] = heap_.top();
+      heap_.pop();
+
+      processFile_(path);
       continue;
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
 }
 
-void SPEED::processIncomingMessage_(const Message &message) {
-  (void)message; // placeholder
-}
+void SPEED::processIncomingMessage_(const Message &message) { (void)message; }
 void SPEED::mockWrite() {
+  std::lock_guard<std::mutex> lock(write_mutex_);
   Message msg;
   const std::string m = "I love biryani (veg)";
   msg.header.version = SPEED_VERSION;
