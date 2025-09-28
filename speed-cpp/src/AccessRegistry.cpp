@@ -8,6 +8,11 @@ AccessRegistry::AccessRegistry(const std::filesystem::path &ac_path,
   if (!Utils::directoryExists(ac_path)) {
     Utils::createAccessRegistryDir(ac_path);
   }
+  if (Utils::fileExists(ac_path_ / (proc_name + ".oregistry"))) {
+    throw std::runtime_error("[ERROR]: Access file already exists!");
+  }
+  this->proc_name_ = proc_name;
+  putAccessFile();
 }
 
 const std::filesystem::path &AccessRegistry::getAccessRegistryPath() const {
@@ -20,7 +25,20 @@ void AccessRegistry::incrementalBuildGlobalRegistry() {
   global_registry_.insert("Tobias");
   global_registry_.insert("Lestrade");
 }
-
+void AccessRegistry::putAccessFile() {
+  std::lock_guard<std::mutex> lock(mtx_);
+  const std::filesystem::path before_path =
+      ac_path_ / (proc_name_ + ".iregistry");
+  const std::filesystem::path after_path =
+      ac_path_ / (proc_name_ + ".oregistry");
+  std::ofstream outstream(before_path);
+  outstream << proc_name_ << "\n";
+  outstream.close();
+  std::cout << "[INFO]: Putting access file.\n";
+  std::cout << "[INFO]: Before File path: " << before_path << "\n";
+  std::cout << "[INFO]: After File path: " << after_path << "\n";
+  std::rename(before_path.c_str(), after_path.c_str());
+}
 bool AccessRegistry::checkGlobalRegistry(const std::string &proc_name) const {
   return global_registry_.find(proc_name) != global_registry_.end();
 }
@@ -66,15 +84,13 @@ bool AccessRegistry::removeProcessFromList(const std::string &proc_name) {
 }
 void AccessRegistry::removeAccessFile() {
   std::lock_guard<std::mutex> lock(mtx_);
-
-  std::ofstream outstream(ac_path_ / (access_filename_ + ".ispeed"));
-  if (!outstream) {
-    std::cerr << "[ERROR]: Unable to open the access file\n";
+  const std::filesystem::path ac_removal_path_ =
+      ac_path_ / (proc_name_ + ".oregistry");
+  if (!Utils::fileExists(ac_removal_path_)) {
+    std::cout
+        << "[ERROR]: Unable to remove the access file, file doesnt exist\n";
   }
-  outstream << access_filename_;
-  outstream.close();
-  std::rename((ac_path_ / (access_filename_ + ".ispeed")).c_str(),
-              (ac_path_ / (access_filename_ + ".ispeed")).c_str());
+  std::filesystem::remove(ac_removal_path_);
 }
 
 } // namespace SPEED

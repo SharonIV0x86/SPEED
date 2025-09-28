@@ -17,12 +17,15 @@ int main(){
     spd.addProcess("Lemon");
     spd.setKeyFile("/home/jasper/Development/SPEED/speed-cpp/config.key");
     spd.start();
-    spd.sendMessage("I AM A LITTLE DEMON");
-    spd.sendMessage("I AM A LITTLE JASPER");
-    spd.sendMessage("I AM A LITTLE LEMNON");
+    // spd.sendMessage("I AM A LITTLE DEMON");
+    // spd.sendMessage("I AM A LITTLE JASPER");
+    // spd.sendMessage("I AM A LITTLE LEMNON");
+    std::cout << "[INFO]: Killing the process\n";
+    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+    // spd.kill();
     // spd.mockWrite();
     // SPEED::Message msg      = spd.mockRead();
-
+    
     // std::string version     = std::to_string(msg.header.version);
     // SPEED::MessageType type = msg.header.type;
     // std::string sender_pid  = std::to_string(msg.header.sender_pid);
@@ -40,6 +43,5 @@ int main(){
     // std::cout << "Read Object sender: "         << sender       << "\n";
     // std::cout << "Read Object reciever: "       << reciever     << "\n";
     // std::cout << "Read Object Payload:"         << payload      << "\n";
-    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
 
 }

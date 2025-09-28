@@ -14,19 +14,20 @@ public:
 
   void addProcessToList(const std::string &proc_name);
   bool removeProcessFromList(const std::string &proc_name);
+  void removeAccessFile();
   const std::filesystem::path &getAccessRegistryPath() const;
 
 private:
   bool checkAccess(const std::string &proc_name) const;
   bool checkGlobalRegistry(const std::string &proc_name) const;
   void putAccessFile();
-  void removeAccessFile();
   void incrementalBuildGlobalRegistry();
 
   std::unordered_set<std::string> allowedProcesses_;
   std::unordered_set<std::string> global_registry_;
   std::filesystem::path ac_path_;
   std::string access_filename_;
+  std::string proc_name_;
 
   mutable std::mutex mtx_; // protects shared state
 };

@@ -106,6 +106,7 @@ void SPEED::resume() {
 void SPEED::kill() {
   watcher_should_exit_.store(true);
   watcher_running_.store(false);
+  access_list_->removeAccessFile();
 }
 
 void SPEED::sendMessage(const std::string &msg) {
