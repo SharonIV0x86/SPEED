@@ -27,7 +27,6 @@ bool BinaryManager::writeBinary(const Message &msg,
   write_string(out, msg.header.sender);
   write_string(out, msg.header.reciever);
 
-  // 🔐 Write nonce (24 bytes for XChaCha20)
   out.write(reinterpret_cast<const char *>(msg.header.nonce.data()),
             msg.header.nonce.size());
 
