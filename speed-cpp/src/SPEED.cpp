@@ -29,7 +29,7 @@ SPEED::SPEED(const std::string &proc_name, const ThreadMode &tmode,
   if (!Utils::directoryExists(speed_dir_ / "access_registry")) {
     Utils::createAccessRegistryDir(speed_dir_ / "access_registry");
   }
-
+  std::cout << "[INFO]: Speed Dir: " << speed_dir_ << "\n";
   access_list_ = std::make_unique<AccessRegistry>(
       speed_dir_ / "access_registry", proc_name);
 }
@@ -44,6 +44,10 @@ bool SPEED::setKeyFile(const std::filesystem::path &key_path) {
     return false;
   std::lock_guard<std::mutex> lock(key_mutex_);
   key_ = KeyManager::getKeyFromConfigFile(key_path);
+  if (!Utils::validateKey(key_)) {
+    std::cout << "[ERROR]: Invalid Key\n";
+    throw std::runtime_error("Invalid Key\n");
+  }
   std::cout << "[INFO]: Retrieved Key: " << key_ << "\n";
   key_path_ = key_path;
   return true;
@@ -104,14 +108,27 @@ void SPEED::kill() {
   watcher_running_.store(false);
 }
 
-void SPEED::sendMessage() {
-  // this is just for test here
+void SPEED::sendMessage(const std::string &msg) {
+  Message message;
+  message.header.version = SPEED_VERSION;
+  message.header.type = MessageType::MSG;
+  message.header.sender_pid = Utils::getProcessID();
+  message.header.timestamp = std::stoull(Utils::getCurrentTimestamp());
+  message.header.seq_num = seq_number_;
+  message.header.sender = self_proc_name_;
+  message.header.reciever = "Lemond";
+
+  message.payload = std::vector<uint8_t>(msg.begin(), msg.end());
+  std::vector<uint64_t> k(key_.begin(), key_.end());
+  EncryptionManager::Encrypt(message, k);
+  BinaryManager::writeBinary(message, speed_dir_, seq_number_, self_proc_name_);
+
   seq_number_.fetch_add(1, std::memory_order_relaxed);
 }
 
 std::optional<long long>
 SPEED::extractSeqFromFilename_(const std::string &filename) const {
-  static const std::regex re("(\\d+)\\.ospeed$");
+  static const std::regex re("^(\\d+)_.*\\.ospeed$");
   std::smatch m;
   if (std::regex_search(filename, m, re) && m.size() >= 2) {
     try {
@@ -124,16 +141,35 @@ SPEED::extractSeqFromFilename_(const std::string &filename) const {
 }
 
 void SPEED::processFile_(const std::filesystem::path &file_path) {
-  std::cout << "[INFO]: Got file: " << file_path << "\n";
-  // std::ifstream ifs(file_path, std::ios::binary);
-  // if (!ifs)
-  //   return;
-  // std::ostringstream ss;
-  // ss << ifs.rdbuf();
-  // Message msg;
-  // processIncomingMessage_(msg);
   std::error_code ec;
+  Message msg = BinaryManager::readBinary(file_path);
+  std::vector<uint64_t> k(key_.begin(), key_.end());
+  EncryptionManager::Decrypt(msg, k);
+  std::string version = std::to_string(msg.header.version);
+  MessageType type = msg.header.type;
+  std::string sender_pid = std::to_string(msg.header.sender_pid);
+  std::string timestamp = std::to_string(msg.header.timestamp);
+  std::string seq_num = std::to_string(msg.header.seq_num);
+  std::string sender = msg.header.sender;
+  std::string reciever = msg.header.reciever;
+  std::string payload = std::string(msg.payload.begin(), msg.payload.end());
+
+  std::cout << "\n\n[INFO]: Got file: " << file_path << "\n";
+  std::cout << "Read Object Version: " << version << "\n";
+  std::cout << "Read Object Type: " << (int)type << "\n";
+  std::cout << "Read Object sender_pid: " << sender_pid << "\n";
+  std::cout << "Read Object timestamp: " << timestamp << "\n";
+  std::cout << "Read Object seq_num: " << seq_num << "\n";
+  std::cout << "Read Object sender: " << sender << "\n";
+  std::cout << "Read Object reciever: " << reciever << "\n";
+  std::cout << "Read Object Payload:" << payload << "\n";
   std::filesystem::remove(file_path, ec);
+  {
+    std::lock_guard<std::mutex> lock(seen_mutex_);
+    seen_.erase(file_path.filename().string());
+  }
+
+  // also call the callback from here as well.
 }
 
 void SPEED::watcherSingleThread_() {
@@ -198,25 +234,4 @@ void SPEED::watcherMultiThread_() {
   }
 }
 
-void SPEED::processIncomingMessage_(const Message &message) { (void)message; }
-void SPEED::mockWrite() {
-  std::lock_guard<std::mutex> lock(write_mutex_);
-  Message msg;
-  const std::string m = "I love biryani (veg)";
-  msg.header.version = SPEED_VERSION;
-  msg.header.type = MessageType::MSG;
-  msg.header.sender_pid = 192;
-  msg.header.timestamp = std::stoull(Utils::getCurrentTimestamp());
-  msg.header.seq_num = seq_number_;
-  msg.header.sender = self_proc_name_;
-  msg.header.reciever = "Murphys";
-  msg.payload = std::vector<uint8_t>(m.begin(), m.end());
-  bool status = BinaryManager::writeBinary(msg, speed_dir_, seq_number_);
-  if (status)
-    seq_number_.fetch_add(1);
-}
-Message SPEED::mockRead() {
-  std::filesystem::path pth = speed_dir_ / "0.ospeed";
-  return BinaryManager::readBinary(pth);
-}
 } // namespace SPEED

@@ -1,29 +1,68 @@
 #include "../include/Utils.hpp"
 
-#include <chrono>
-#include <cstdlib>
-#include <iomanip>
-#include <iostream>
-#include <random>
-#include <sstream>
+// #include <chrono>
+// #include <cstdlib>
+// #include <iomanip>
+// #include <iostream>
+// #include <random>
+// #include <sstream>
+// #if defined(_WIN32)
+// #include <windows.h>
+// #elif defined(__unix__) || defined(__APPLE__)
+// #include <unistd.h>
+// #endif
 
 namespace SPEED {
 namespace Utils {
-
 std::filesystem::path getDefaultSPEEDDir() {
-  std::filesystem::path base_dir;
+  std::filesystem::path tmp_dir;
+
 #ifdef _WIN32
-  base_dir = std::getenv("LOCALAPPDATA");
-#else
-  if (const char *xdg_data_home = std::getenv("XDG_DATA_HOME")) {
-    base_dir = xdg_data_home;
+  // On Windows, check TMP, TEMP, or LOCALAPPDATA
+  if (const char *env_tmp = std::getenv("TMP")) {
+    tmp_dir = env_tmp;
+  } else if (const char *env_temp = std::getenv("TEMP")) {
+    tmp_dir = env_temp;
+  } else if (const char *env_local = std::getenv("LOCALAPPDATA")) {
+    tmp_dir = env_local;
   } else {
-    base_dir = std::getenv("HOME");
-    base_dir /= ".local/share";
+    tmp_dir = "C:\\Windows\\Temp"; // fallback
+  }
+#else
+  if (const char *env_tmpdir = std::getenv("TMPDIR")) {
+    tmp_dir = env_tmpdir;
+  } else {
+    tmp_dir = "/tmp";
   }
 #endif
-  base_dir /= "speed"; // <-- typo? maybe meant "speed"
-  return base_dir;
+
+  tmp_dir /= "speed";
+  std::filesystem::create_directories(tmp_dir);
+
+  return tmp_dir;
+}
+
+uint64_t getProcessID() {
+#if defined(_WIN32)
+  return static_cast<uint64_t>(GetCurrentProcessId());
+#elif defined(__unix__) || defined(__APPLE__)
+  return static_cast<uint64_t>(getpid());
+#else
+#error "Unsupported platform"
+#endif
+}
+bool validateKey(const std::string &b64_key) {
+  if (b64_key.empty())
+    return false;
+
+  unsigned char key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES];
+  if (sodium_base642bin(key, sizeof(key), b64_key.c_str(), b64_key.size(),
+                        nullptr, nullptr, nullptr,
+                        sodium_base64_VARIANT_ORIGINAL) != 0) {
+    std::cerr << "[ERROR]: Key is not valid Base64 or has wrong size\n";
+    return false;
+  }
+  return true;
 }
 
 std::string getCurrentTimestamp() {

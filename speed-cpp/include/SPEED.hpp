@@ -3,10 +3,12 @@
 #include "BinaryManager.hpp"
 #include "BinaryMessage.hpp"
 #include "Constants.hpp"
+#include "EncryptionManager.hpp"
 #include "KeyManager.hpp"
 #include "Utils.hpp"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <filesystem>
 #include <fstream>
@@ -26,7 +28,7 @@ enum class ThreadMode { Single = 0, Multi = 1 };
 
 class SPEED {
 public:
-  void sendMessage();
+  void sendMessage(const std::string &);
   void kill();
   void stop();
   void resume();
@@ -39,8 +41,6 @@ public:
   void setCallback(std::function<void(const PMessage &)> cb);
   void trigger();
   void addProcess(const std::string &);
-  void mockWrite(); // just test reading and writing
-  Message mockRead();
   ~SPEED();
 
 private:
@@ -70,9 +70,6 @@ private:
   std::atomic<bool> watcher_should_exit_{false};
   std::mutex watcher_mutex_;
 
-  void processIncomingMessage_(const Message &);
-
-  // internal watcher functions
   void watcherSingleThread_(); // blocking call for single-thread mode
   void watcherMultiThread_();  // non-blocking call for multi-thread mode
 
@@ -88,7 +85,7 @@ private:
   };
   std::priority_queue<FileCandidate, std::vector<FileCandidate>, CompareSeq>
       heap_;
-  std::unordered_set<std::string> seen_; // to avoid reinserting same file
+  std::unordered_set<std::string> seen_;
 };
 
 } // namespace SPEED

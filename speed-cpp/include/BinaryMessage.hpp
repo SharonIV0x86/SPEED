@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <cstdint>
 #include <iostream>
 #include <vector>
@@ -12,6 +13,7 @@ struct MessageHeader {
   uint64_t seq_num;
   std::string sender;
   std::string reciever;
+  std::array<uint8_t, 24> nonce; // 24 bytes for XChaCha20-Poly1305
 };
 
 struct Message {

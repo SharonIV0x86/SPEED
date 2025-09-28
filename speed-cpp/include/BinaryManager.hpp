@@ -1,5 +1,5 @@
 #pragma once
-#include "BinaryMessage.hpp" // your Message and MessageHeader definitions
+#include "BinaryMessage.hpp"
 #include "Utils.hpp"
 #include <array>
 #include <atomic>
@@ -13,7 +13,7 @@ namespace SPEED {
 class BinaryManager {
 public:
   static bool writeBinary(const Message &, const std::filesystem::path &,
-                          std::atomic<long long> &);
+                          std::atomic<long long> &, const std::string &);
   static Message readBinary(const std::filesystem::path &);
 };
 
