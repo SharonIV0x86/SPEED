@@ -17,29 +17,36 @@ public:
   static Message readBinary(const std::filesystem::path &);
 };
 
-template <typename T> std::array<uint8_t, sizeof(T)> to_big_endian(T value) {
-  static_assert(std::is_integral_v<T>, "Integral type required");
-  std::array<uint8_t, sizeof(T)> out{};
+template <typename T> std::vector<unsigned char> to_big_endian(T value) {
+  std::vector<unsigned char> bytes(sizeof(T));
   for (size_t i = 0; i < sizeof(T); ++i) {
-    out[sizeof(T) - 1 - i] = static_cast<uint8_t>(value & 0xFF);
-    value >>= 8;
+    if constexpr (sizeof(T) > 1)
+      bytes[sizeof(T) - 1 - i] = (value >> (i * 8)) & 0xFF;
+    else
+      bytes[0] = value; // no shift for 1-byte types
   }
-  return out;
+  return bytes;
 }
 
 // Convert big-endian byte array back to integral
-template <typename T> T inline from_big_endian(const uint8_t *data) {
-  static_assert(std::is_integral_v<T>, "Integral type required");
+template <typename T> T from_big_endian(const uint8_t *buf) {
+  static_assert(std::is_integral_v<T>,
+                "from_big_endian requires integral type");
   T value = 0;
   for (size_t i = 0; i < sizeof(T); ++i) {
-    value = (value << 8) | data[i];
+    value = (value << 8) | buf[i];
   }
   return value;
 }
-template <typename T>
-static void inline write_uint(std::ofstream &out, T value) {
-  auto bytes = to_big_endian(value);
-  out.write(reinterpret_cast<const char *>(bytes.data()), bytes.size());
+
+template <typename T> void write_uint(std::ofstream &out, T value) {
+  static_assert(std::is_integral_v<T>, "write_uint requires integral type");
+  unsigned char buf[sizeof(T)];
+  for (size_t i = 0; i < sizeof(T); ++i) {
+    buf[sizeof(T) - 1 - i] =
+        static_cast<unsigned char>((value >> (i * 8)) & 0xFF);
+  }
+  out.write(reinterpret_cast<const char *>(buf), sizeof(T));
 }
 
 // template for reading integral types from big-endian

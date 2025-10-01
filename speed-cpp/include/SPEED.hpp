@@ -28,19 +28,18 @@ enum class ThreadMode { Single = 0, Multi = 1 };
 
 class SPEED {
 public:
-  void sendMessage(const std::string &);
+  void sendMessage(const std::string &, const std::string &);
   void kill();
   void stop();
   void resume();
   void start();
-
+  bool addProcess(const std::string &);
   SPEED(const std::string &, const ThreadMode &, const std::filesystem::path &);
   SPEED(const std::string &, const ThreadMode &);
 
   bool setKeyFile(const std::filesystem::path &);
   void setCallback(std::function<void(const PMessage &)> cb);
-  void trigger();
-  void addProcess(const std::string &);
+  // void trigger();
   ~SPEED();
 
 private:
@@ -64,8 +63,8 @@ private:
   std::mutex single_mtx_;
   std::mutex multi_mutex_;
   std::mutex write_mutex_;
-
   std::thread watcher_thread_;
+
   std::atomic<bool> watcher_running_{false};
   std::atomic<bool> watcher_should_exit_{false};
   std::mutex watcher_mutex_;

@@ -9,7 +9,8 @@ AccessRegistry::AccessRegistry(const std::filesystem::path &ac_path,
     Utils::createAccessRegistryDir(ac_path);
   }
   if (Utils::fileExists(ac_path_ / (proc_name + ".oregistry"))) {
-    throw std::runtime_error("[ERROR]: Access file already exists!");
+    // throw std::runtime_error("[ERROR]: Access file already exists!");
+    removeAccessFile();
   }
   this->proc_name_ = proc_name;
   putAccessFile();
@@ -21,9 +22,12 @@ const std::filesystem::path &AccessRegistry::getAccessRegistryPath() const {
 
 void AccessRegistry::incrementalBuildGlobalRegistry() {
   // Mock incremental build (could scan files)
-  global_registry_.insert("Jasper");
-  global_registry_.insert("Tobias");
-  global_registry_.insert("Lestrade");
+  if (proc_name_ == "Anirudh L.")
+    global_registry_.insert("Riddhi K.");
+  else
+    global_registry_.insert("Anirudh L.");
+  // global_registry_.insert("Tobias");
+  // global_registry_.insert("Lestrade");
 }
 void AccessRegistry::putAccessFile() {
   std::lock_guard<std::mutex> lock(mtx_);
@@ -34,9 +38,9 @@ void AccessRegistry::putAccessFile() {
   std::ofstream outstream(before_path);
   outstream << proc_name_ << "\n";
   outstream.close();
-  std::cout << "[INFO]: Putting access file.\n";
-  std::cout << "[INFO]: Before File path: " << before_path << "\n";
-  std::cout << "[INFO]: After File path: " << after_path << "\n";
+  // std::cout << "[INFO]: Putting access file.\n";
+  // std::cout << "[INFO]: Before File path: " << before_path << "\n";
+  // std::cout << "[INFO]: After File path: " << after_path << "\n";
   std::rename(before_path.c_str(), after_path.c_str());
 }
 bool AccessRegistry::checkGlobalRegistry(const std::string &proc_name) const {
@@ -51,10 +55,10 @@ void AccessRegistry::addProcessToList(const std::string &proc_name) {
   // std::cout << "Inside addProcessToList\n";
   std::lock_guard<std::mutex> lock(mtx_);
 
-  if (checkAccess(proc_name)) {
-    std::cout << "[ERROR]: Process Already Exists in Access Registry\n";
-    return;
-  }
+  // if (checkAccess(proc_name)) {
+  //   std::cout << "[ERROR]: Process Already Exists in Access Registry\n";
+  //   return;
+  // }
 
   if (!checkGlobalRegistry(proc_name)) {
     std::cout << "[INFO]: Process not in global registry, rebuilding...\n";
@@ -67,7 +71,7 @@ void AccessRegistry::addProcessToList(const std::string &proc_name) {
 
   // Safe add
   allowedProcesses_.insert(proc_name);
-  std::cout << "[INFO]: Process Added to Allowed Registry\n";
+  // std::cout << "[INFO]: Process Added to Allowed Registry\n";
 }
 
 bool AccessRegistry::removeProcessFromList(const std::string &proc_name) {

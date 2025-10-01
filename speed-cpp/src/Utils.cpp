@@ -60,9 +60,10 @@ std::string getCurrentTimestamp() {
   auto now_ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
 
   std::ostringstream oss;
-  oss << std::put_time(std::localtime(&now_time_t), "%Y%m%dT%H%M%S")
+  oss << std::put_time(std::localtime(&now_time_t),
+                       "%Y%m%d%H%M%S") // removed 'T'
       << std::setw(3) << std::setfill('0') << now_ms.count();
-  return oss.str();
+  return oss.str(); // e.g. "20251001225401123"
 }
 
 std::string generateUUID() {

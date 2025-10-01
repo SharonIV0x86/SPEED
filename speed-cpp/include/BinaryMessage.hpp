@@ -24,9 +24,9 @@ struct PMessage {
 public:
   std::string sender_name;
   std::string message;
-  uint64_t timestamp;
+  std::string timestamp;
   PMessage(const std::string &sender_name, const std::string &message,
-           const uint64_t &timestamp) {
+           const std::string &timestamp) {
     this->sender_name = sender_name;
     this->message = message;
     this->timestamp = timestamp;

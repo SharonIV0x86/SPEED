@@ -29,7 +29,7 @@ SPEED::SPEED(const std::string &proc_name, const ThreadMode &tmode,
   if (!Utils::directoryExists(speed_dir_ / "access_registry")) {
     Utils::createAccessRegistryDir(speed_dir_ / "access_registry");
   }
-  std::cout << "[INFO]: Speed Dir: " << speed_dir_ << "\n";
+  // std::cout << "[INFO Speed Dir: " << speed_dir_ << "\n";
   access_list_ = std::make_unique<AccessRegistry>(
       speed_dir_ / "access_registry", proc_name);
 }
@@ -48,7 +48,7 @@ bool SPEED::setKeyFile(const std::filesystem::path &key_path) {
     std::cout << "[ERROR]: Invalid Key\n";
     throw std::runtime_error("Invalid Key\n");
   }
-  std::cout << "[INFO]: Retrieved Key: " << key_ << "\n";
+  // std::cout << "[INFO]: Retrieved Key: " << key_ << "\n";
   key_path_ = key_path;
   return true;
 }
@@ -58,22 +58,29 @@ void SPEED::setCallback(std::function<void(const PMessage &)> cb) {
   callback_ = std::move(cb);
 }
 
-void SPEED::trigger() {
-  std::function<void(const PMessage &)> cb_copy;
-  {
-    std::lock_guard<std::mutex> lock(callback_mutex_);
-    cb_copy = callback_;
-  }
-  if (cb_copy) {
-    PMessage msg("Lemon", "BING BONG", 69420);
-    cb_copy(msg);
-  }
-}
+// void SPEED::trigger() {
+//   std::function<void(const PMessage &)> cb_copy;
+//   {
+//     std::lock_guard<std::mutex> lock(callback_mutex_);
+//     cb_copy = callback_;
+//   }
+//   if (cb_copy) {
+//     PMessage msg("Lemon", "BING BONG", 69420);
+//     cb_copy(msg);
+//   }
+// }
 
-void SPEED::addProcess(const std::string &proc_name) {
+bool SPEED::addProcess(const std::string &proc_name) {
   std::lock_guard<std::mutex> lock(access_list_mutex_);
+
+  if (access_list_->checkAccess(proc_name)) {
+    return false;
+  }
+
   if (access_list_)
     access_list_->addProcessToList(proc_name);
+
+  return true;
 }
 
 void SPEED::start() {
@@ -109,7 +116,7 @@ void SPEED::kill() {
   access_list_->removeAccessFile();
 }
 
-void SPEED::sendMessage(const std::string &msg) {
+void SPEED::sendMessage(const std::string &msg, const std::string &rec_name) {
   Message message;
   message.header.version = SPEED_VERSION;
   message.header.type = MessageType::MSG;
@@ -117,12 +124,12 @@ void SPEED::sendMessage(const std::string &msg) {
   message.header.timestamp = std::stoull(Utils::getCurrentTimestamp());
   message.header.seq_num = seq_number_;
   message.header.sender = self_proc_name_;
-  message.header.reciever = "Lemond";
+  message.header.reciever = rec_name;
 
   message.payload = std::vector<uint8_t>(msg.begin(), msg.end());
   std::vector<uint64_t> k(key_.begin(), key_.end());
   EncryptionManager::Encrypt(message, k);
-  BinaryManager::writeBinary(message, speed_dir_, seq_number_, self_proc_name_);
+  BinaryManager::writeBinary(message, speed_dir_, seq_number_, rec_name);
 
   seq_number_.fetch_add(1, std::memory_order_relaxed);
 }
@@ -143,6 +150,7 @@ SPEED::extractSeqFromFilename_(const std::string &filename) const {
 
 void SPEED::processFile_(const std::filesystem::path &file_path) {
   std::error_code ec;
+  std::lock_guard<std::mutex> lock(callback_mutex_);
   Message msg = BinaryManager::readBinary(file_path);
   std::vector<uint64_t> k(key_.begin(), key_.end());
   EncryptionManager::Decrypt(msg, k);
@@ -155,15 +163,17 @@ void SPEED::processFile_(const std::filesystem::path &file_path) {
   std::string reciever = msg.header.reciever;
   std::string payload = std::string(msg.payload.begin(), msg.payload.end());
 
-  std::cout << "\n\n[INFO]: Got file: " << file_path << "\n";
-  std::cout << "Read Object Version: " << version << "\n";
-  std::cout << "Read Object Type: " << (int)type << "\n";
-  std::cout << "Read Object sender_pid: " << sender_pid << "\n";
-  std::cout << "Read Object timestamp: " << timestamp << "\n";
-  std::cout << "Read Object seq_num: " << seq_num << "\n";
-  std::cout << "Read Object sender: " << sender << "\n";
-  std::cout << "Read Object reciever: " << reciever << "\n";
-  std::cout << "Read Object Payload:" << payload << "\n";
+  PMessage mm(sender, payload, timestamp);
+  callback_(mm);
+  // std::cout << "\n\n[INFO]: Got file: " << file_path << "\n";
+  // std::cout << "Read Object Version: " << version << "\n";
+  // std::cout << "Read Object Type: " << (int)type << "\n";
+  // std::cout << "Read Object sender_pid: " << sender_pid << "\n";
+  // std::cout << "Read Object timestamp: " << timestamp << "\n";
+  // std::cout << "Read Object seq_num: " << seq_num << "\n";
+  // std::cout << "Read Object sender: " << sender << "\n";
+  // std::cout << "Read Object reciever: " << reciever << "\n";
+  // std::cout << "Read Object Payload:" << payload << "\n";
   std::filesystem::remove(file_path, ec);
   {
     std::lock_guard<std::mutex> lock(seen_mutex_);
@@ -175,7 +185,7 @@ void SPEED::processFile_(const std::filesystem::path &file_path) {
 
 void SPEED::watcherSingleThread_() {
   std::lock_guard<std::mutex> lock(single_mtx_);
-  std::cout << "[INFO]: Starting Single-Thread Blocking Watcher\n";
+  // std::cout << "[INFO]: Starting Single-Thread Blocking Watcher\n";
 
   while (!watcher_should_exit_.load()) {
     for (auto &entry : std::filesystem::directory_iterator(self_speed_dir_)) {
@@ -208,7 +218,7 @@ void SPEED::watcherSingleThread_() {
 }
 void SPEED::watcherMultiThread_() {
   std::lock_guard<std::mutex> lock(multi_mutex_);
-  std::cout << "[INFO]: Starting Multi-Thread Non-Blocking Watcher\n";
+  // std::cout << "[INFO]: Starting Multi-Thread Non-Blocking Watcher\n";
   while (!watcher_should_exit_.load()) {
     for (auto &entry : std::filesystem::directory_iterator(self_speed_dir_)) {
       if (!entry.is_regular_file())
