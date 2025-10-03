@@ -68,6 +68,47 @@ So ``P1`` again traverses the ``access_registry`` folder and incrementally build
 ## Step 3
 So ``P3`` is available to be connected but its not connected yet, so ``P1`` sends out a connection request (``CON_REQ``) to ``P3``. Now assume that ``P3`` accepts the connection request and sends a ``CON_ACPT`` signal to ``P1``. Now the ``P1`` and ``P3`` are both connection and ``P1`` adds the ``P3`` to its ``connected_list_``. And in the vice versa ``P3`` adds ``P1`` to its ``connected_list_``.
 
-## Step 4
+## Step 4 (final)
 Now at this stage both ``P2`` and ``P3`` are available to be sent out the messages to.
 So that's what happens ``P1`` sends out the ``"Hello"`` message to both ``P2`` and ``P3`` and they recieve it and process it.
+
+# Process Message Recieving flow
+Assume that the processes ``P2`` and ``P3`` have to send message ``"Hello"`` and ``"Welcome"`` to ``P1``. And also assume that ``P1`` is also available to communicate.
+
+## Step 1
+Both the processes ``P2`` and ``P3`` encrypts and writes the message binary file in the process folder of ``P1``.
+## Step 2
+``P1`` finds these files. 
+Assume that ``P2`` and ``P3`` wrote these files
+- ``P2`` wrote its message "Hello" in ``0023_fghg-43fd-34ff-234t.ospeed``
+- ``P3`` wrote its message "Welcome" in ``0021_3ehg-klfd-90ff-jk87.ospeed``
+
+## Step 3
+Now we only have to focus on the sequence number of these files. ``P1`` extracts and add the sequence numbers to it internally and adds its to a sorted mapping consisting of key-value pairs.
+Here key is the sequence number and the value is the full name of the file. 
+
+This key-value mapping is stored in a sorted order to ensure FIFO.
+
+```sh
+    key     value
+    21  :  0021_3ehg-klfd-90ff-jk87.ospeed
+    23  :  0023_fghg-43fd-34ff-234t.ospeed
+```
+Now P1 will first read the file with smaller sequence number because it was written first.
+
+## Step 4
+``P1`` goes to the binary file ``0021_3ehg-klfd-90ff-jk87.ospeed`` and reads it, now this file has a lots of fields, and this file is then passed to the binary manager.
+
+## Step 5
+Since we have the information about the **exact** offsets at which what data is written. ``P1`` directly jumps to that exact offset at which the field ``reciever_name`` is written in the binary, it picks it up and decrypts the text in that field.
+
+``P1`` first has to verify whether this message was intented for ``P1`` or not. The binary file has a field called as ``reciever_name`` this field must have the name of the ``P1`` in order to tell to which process this message is desired to. 
+
+If ``P1`` finds **its** name in the ``reciever_name`` field of the binary file it then proceeds, otherwise it delets that file and moves on.
+
+## Step 6 (final)
+Assume that this message was intended for ``P1`` and ``P1`` indeed finds its name in the ``reciever_name`` field of the binary file. 
+
+Next ``P1`` has to ensure that the process which wrote this message is also present in ``P1``'s ``access_list_`` or not. So P1 goes and checks its ``access_list_``. This ensure that ``P1`` reads messages from the processes which the developer has allowed it to read from.
+
+Assume that ``P1`` finds the name of the ``P2`` in its access list which means that ``P1`` is allowed to read from ``P2``. So P1 decrypts the whole message and processes it.
