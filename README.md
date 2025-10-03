@@ -47,12 +47,14 @@ After the ``P1`` sends out the connection requests it waits for 500ms to get all
 Now once the connections are established the communication can finally take place.
 
 # Process Message Sending Flow.
-Assume that ``P1`` process is is successfully connected with ``P2``, ``P3`` and ``P4``.
+Assume that ``P1`` process wants to send message to ``P2``, ``P3`` and ``P4``.
 ## Step 1
 User or Dev calls the function
+
 ```cpp
 speed.sendMessage("Hello", ["P2", "P3"]);
 ```
+
 Now the SPEED will try to send the message ``"Hello"`` to both ``P2`` and ``P3``.
 ## Step 1
 Now the main thing here is to validate whether the processes P2 and P3 are available to connect or not and whether we have access of them are not.
