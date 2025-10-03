@@ -80,8 +80,8 @@ Both the processes ``P2`` and ``P3`` encrypts and writes the message binary file
 ## Step 2
 ``P1`` finds these files. 
 Assume that ``P2`` and ``P3`` wrote these files
-- ``P2`` wrote its message "Hello" in ``0023_fghg-43fd-34ff-234t.ospeed``
-- ``P3`` wrote its message "Welcome" in ``0021_3ehg-klfd-90ff-jk87.ospeed``
+- ``P2`` wrote its message "Hello" in ``0021_fghg-43fd-34ff-234t.ospeed``
+- ``P3`` wrote its message "Welcome" in ``0023_3ehg-klfd-90ff-jk87.ospeed``
 
 ## Step 3
 Now we only have to focus on the sequence number of these files. ``P1`` extracts and add the sequence numbers to it internally and adds its to a sorted mapping consisting of key-value pairs.
@@ -106,9 +106,12 @@ Since we have the information about the **exact** offsets at which what data is 
 
 If ``P1`` finds **its** name in the ``reciever_name`` field of the binary file it then proceeds, otherwise it delets that file and moves on.
 
-## Step 6 (final)
+## Step 6 
 Assume that this message was intended for ``P1`` and ``P1`` indeed finds its name in the ``reciever_name`` field of the binary file. 
 
-Next ``P1`` has to ensure that the process which wrote this message is also present in ``P1``'s ``access_list_`` or not. So P1 goes and checks its ``access_list_``. This ensure that ``P1`` reads messages from the processes which the developer has allowed it to read from.
+Next ``P1`` has to ensure that the process which wrote this message is also present in ``P1``'s ``access_list_`` or not. So ``P1`` goes and checks its ``access_list_`` for the process with name ``P2``. This ensure that ``P1`` reads messages from the processes which the developer has allowed it to read from.
 
-Assume that ``P1`` finds the name of the ``P2`` in its access list which means that ``P1`` is allowed to read from ``P2``. So P1 decrypts the whole message and processes it.
+Assume that ``P1`` finds the name of the ``P2`` in its access list which means that ``P1`` is allowed to read from ``P2``. So ``P1`` decrypts the whole message and processes it.
+
+## Step 7 (final)
+Now in the same way ``P1`` processes the message sent from ``P3`` in the file with sequence number ``23`` and file name ``0023_3ehg-klfd-90ff-jk87.ospeed``.
