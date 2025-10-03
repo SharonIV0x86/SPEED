@@ -58,18 +58,6 @@ void SPEED::setCallback(std::function<void(const PMessage &)> cb) {
   callback_ = std::move(cb);
 }
 
-// void SPEED::trigger() {
-//   std::function<void(const PMessage &)> cb_copy;
-//   {
-//     std::lock_guard<std::mutex> lock(callback_mutex_);
-//     cb_copy = callback_;
-//   }
-//   if (cb_copy) {
-//     PMessage msg("Lemon", "BING BONG", 69420);
-//     cb_copy(msg);
-//   }
-// }
-
 bool SPEED::addProcess(const std::string &proc_name) {
   std::lock_guard<std::mutex> lock(access_list_mutex_);
 

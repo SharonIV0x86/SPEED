@@ -22,7 +22,7 @@ private:
   bool checkGlobalRegistry(const std::string &proc_name) const;
   void putAccessFile();
   void incrementalBuildGlobalRegistry();
-
+  void printRegistry() const;
   std::unordered_set<std::string> allowedProcesses_;
   std::unordered_set<std::string> global_registry_;
 

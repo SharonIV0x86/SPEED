@@ -14,6 +14,8 @@ AccessRegistry::AccessRegistry(const std::filesystem::path &ac_path,
   }
   this->proc_name_ = proc_name;
   putAccessFile();
+  incrementalBuildGlobalRegistry();
+  printRegistry();
 }
 
 const std::filesystem::path &AccessRegistry::getAccessRegistryPath() const {
@@ -21,14 +23,29 @@ const std::filesystem::path &AccessRegistry::getAccessRegistryPath() const {
 }
 
 void AccessRegistry::incrementalBuildGlobalRegistry() {
-  // Mock incremental build (could scan files)
-  if (proc_name_ == "Anirudh L.")
-    global_registry_.insert("Riddhi K.");
-  else
-    global_registry_.insert("Anirudh L.");
-  // global_registry_.insert("Tobias");
-  // global_registry_.insert("Lestrade");
+  try {
+    for (const auto &entry : std::filesystem::recursive_directory_iterator(ac_path_)) {
+      std::string name = entry.path().filename().string();
+      if(name == proc_name_) continue;
+      if (global_registry_.find(name) == global_registry_.end()) {
+        global_registry_.insert(name);
+        std::cout << "[INFO] Added to registry: " << name << "\n";
+      } else {
+        std::cout << "[SKIP] Already present: " << name << "\n";
+      }
+    }
+  } catch (const std::filesystem::filesystem_error &e) {
+    std::cerr << "[ERROR] Filesystem error: " << e.what() << "\n";
+  }
 }
+
+void AccessRegistry::printRegistry() const {
+  std::cout << "=== Global Registry ===\n";
+  for (const auto &item : global_registry_) {
+    std::cout << item << "\n";
+  }
+}
+
 void AccessRegistry::putAccessFile() {
   std::lock_guard<std::mutex> lock(mtx_);
   const std::filesystem::path before_path =
@@ -38,9 +55,6 @@ void AccessRegistry::putAccessFile() {
   std::ofstream outstream(before_path);
   outstream << proc_name_ << "\n";
   outstream.close();
-  // std::cout << "[INFO]: Putting access file.\n";
-  // std::cout << "[INFO]: Before File path: " << before_path << "\n";
-  // std::cout << "[INFO]: After File path: " << after_path << "\n";
   std::rename(before_path.c_str(), after_path.c_str());
 }
 bool AccessRegistry::checkGlobalRegistry(const std::string &proc_name) const {

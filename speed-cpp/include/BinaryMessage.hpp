@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 namespace SPEED {
-enum class MessageType { MSG, CON_REQ, CON_RES, INVOKE_METHOD };
+enum class MessageType { MSG, CON_REQ, CON_RES, INVOKE_METHOD, EXIT_NOTIF };
 struct MessageHeader {
   uint8_t version;
   MessageType type;
