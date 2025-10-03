@@ -56,19 +56,19 @@ speed.sendMessage("Hello", ["P2", "P3"]);
 ```
 
 Now the SPEED will try to send the message ``"Hello"`` to both ``P2`` and ``P3``.
-## Step 1
+## Step 2
 Now the main thing here is to validate whether the processes P2 and P3 are available to connect or not and whether we have access of them are not.
 
 The first thing that happens is that the SPEED checks with the ``global_registry_`` to ensure that the P2 and P3 processes have arrived in the ``global_registry_`` or not.
 If they are found in the ``global_registry_`` then well and good and if not then next things happen in ``step 2``
-## Step 2
+## Step 3
 Assume that ``P2`` is in the ``global_registry_`` but ``P3`` is not. This can most likely means that when ``P3`` arrived ``P1``(current process) was not notified. So the ``global_registry_`` snapshot that ``P1`` has is outdated. 
 So ``P1`` again traverses the ``access_registry`` folder and incrementally builds its ``global_registry_``. And assume that ``P1`` finds ``P3`` in the global registry. 
 
-## Step 3
+## Step 4
 So ``P3`` is available to be connected but its not connected yet, so ``P1`` sends out a connection request (``CON_REQ``) to ``P3``. Now assume that ``P3`` accepts the connection request and sends a ``CON_ACPT`` signal to ``P1``. Now the ``P1`` and ``P3`` are both connection and ``P1`` adds the ``P3`` to its ``connected_list_``. And in the vice versa ``P3`` adds ``P1`` to its ``connected_list_``.
 
-## Step 4 (final)
+## Step 5 (final)
 Now at this stage both ``P2`` and ``P3`` are available to be sent out the messages to.
 So that's what happens ``P1`` sends out the ``"Hello"`` message to both ``P2`` and ``P3`` and they recieve it and process it.
 
