@@ -85,9 +85,16 @@ void AccessRegistry::addProcessToList(const std::string &proc_name) {
 
   // Safe add
   allowedProcesses_.insert(proc_name);
+  connect_to(proc_name);
   // std::cout << "[INFO]: Process Added to Allowed Registry\n";
 }
-
+bool AccessRegistry::connect_to(const std::string &target) {
+    // your logic here
+    if (1)
+        return true;
+    else
+        return false;
+}
 bool AccessRegistry::removeProcessFromList(const std::string &proc_name) {
   std::lock_guard<std::mutex> lock(mtx_);
 

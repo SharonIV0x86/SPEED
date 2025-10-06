@@ -17,15 +17,15 @@ public:
   void removeAccessFile();
   const std::filesystem::path &getAccessRegistryPath() const;
   bool checkAccess(const std::string &proc_name) const;
-
-private:
+  bool connect_to(const std::string& );
   bool checkGlobalRegistry(const std::string &proc_name) const;
+private:
   void putAccessFile();
   void incrementalBuildGlobalRegistry();
   void printRegistry() const;
   std::unordered_set<std::string> allowedProcesses_;
   std::unordered_set<std::string> global_registry_;
-
+  std::unordered_set<std::string> connected_list_;
   std::filesystem::path ac_path_;
   std::string access_filename_;
   std::string proc_name_;
