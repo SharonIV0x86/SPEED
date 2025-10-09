@@ -12,9 +12,9 @@ void user_callback(const SPEED::PMessage& msg){
 
 int main(){
     // std::cout << "Hello world\n";
-    SPEED::SPEED spd("Anirudh L.", SPEED::ThreadMode::Multi);
+    SPEED::SPEED spd("Anirudh", SPEED::ThreadMode::Multi);
     spd.setCallback(user_callback);
-    spd.addProcess("Riddhi K.");
+    spd.addProcess("Riddhi");
     spd.setKeyFile("/home/jasper/Development/SPEED/speed-cpp/config.key");
     spd.start();
     // while (true) {
@@ -30,6 +30,6 @@ int main(){
     // }
 
     // std::cout << "[INFO]: Killing the process\n";
-    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1200000));
 
 }

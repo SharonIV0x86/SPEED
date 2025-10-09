@@ -24,9 +24,11 @@ const std::filesystem::path &AccessRegistry::getAccessRegistryPath() const {
 
 void AccessRegistry::incrementalBuildGlobalRegistry() {
   try {
-    for (const auto &entry : std::filesystem::recursive_directory_iterator(ac_path_)) {
-      std::string name = entry.path().filename().string();
-      if(name == proc_name_) continue;
+    for (const auto &entry :
+         std::filesystem::recursive_directory_iterator(ac_path_)) {
+      std::string name = entry.path().stem().string();
+      if (name == proc_name_)
+        continue;
       if (global_registry_.find(name) == global_registry_.end()) {
         global_registry_.insert(name);
         std::cout << "[INFO] Added to registry: " << name << "\n";
@@ -88,12 +90,12 @@ void AccessRegistry::addProcessToList(const std::string &proc_name) {
   connect_to(proc_name);
   // std::cout << "[INFO]: Process Added to Allowed Registry\n";
 }
-bool AccessRegistry::connect_to(const std::string &target) {
-    // your logic here
-    if (1)
-        return true;
-    else
-        return false;
+bool AccessRegistry::connect_to(const std::string &proc_name) {
+  if (connected_list_.find(proc_name) != connected_list_.end()) {
+    return false;
+  }
+  connected_list_.insert(proc_name);
+  return true;
 }
 bool AccessRegistry::removeProcessFromList(const std::string &proc_name) {
   std::lock_guard<std::mutex> lock(mtx_);
@@ -117,5 +119,10 @@ void AccessRegistry::removeAccessFile() {
   }
   std::filesystem::remove(ac_removal_path_);
 }
+bool AccessRegistry::check_connection(const std::string &proc_name) const {
+  if (connected_list_.find(proc_name) == connected_list_.end())
+    return false;
 
+  return true;
+}
 } // namespace SPEED

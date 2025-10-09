@@ -65,7 +65,7 @@ bool SPEED::addProcess(const std::string &proc_name) {
     return false;
   }
 
-  if (access_list_)
+  if (access_list_ && !access_list_->check_connection(proc_name))
     access_list_->addProcessToList(proc_name);
 
   return true;

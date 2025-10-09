@@ -17,8 +17,10 @@ public:
   void removeAccessFile();
   const std::filesystem::path &getAccessRegistryPath() const;
   bool checkAccess(const std::string &proc_name) const;
-  bool connect_to(const std::string& );
+  bool connect_to(const std::string &);
   bool checkGlobalRegistry(const std::string &proc_name) const;
+  bool check_connection(const std::string &proc_name) const;
+
 private:
   void putAccessFile();
   void incrementalBuildGlobalRegistry();
