@@ -8,9 +8,9 @@ void user_callback(const SPEED::PMessage& msg){
 }
 
 int main(){
-    SPEED::SPEED spd("Riddhi K.", SPEED::ThreadMode::Multi);
+    SPEED::SPEED spd("Riddhi", SPEED::ThreadMode::Multi);
     spd.setCallback(user_callback);
-    spd.addProcess("Anirudh L.");
+    spd.addProcess("Anirudh");
     spd.setKeyFile("/home/jasper/Development/SPEED/speed-cpp/config.key");
     spd.start();
     while (true) {
@@ -21,7 +21,7 @@ int main(){
             if(s == "--exit"){
                 break;
             }
-            spd.sendMessage(s, "Anirudh L.");
+            spd.sendMessage(s, "Anirudh");
         }
     }
     

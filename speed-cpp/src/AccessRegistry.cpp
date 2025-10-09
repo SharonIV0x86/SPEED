@@ -80,15 +80,14 @@ void AccessRegistry::addProcessToList(const std::string &proc_name) {
     std::cout << "[INFO]: Process not in global registry, rebuilding...\n";
     incrementalBuildGlobalRegistry();
     if (!checkGlobalRegistry(proc_name)) {
-      std::cout << "[ERROR]: Process cannot be added, not in global registry\n";
+      std::cout
+          << "[ERROR]: Process cannot be added, process not arrived yet!\n";
       return;
     }
   }
-
   // Safe add
   allowedProcesses_.insert(proc_name);
   connect_to(proc_name);
-  // std::cout << "[INFO]: Process Added to Allowed Registry\n";
 }
 bool AccessRegistry::connect_to(const std::string &proc_name) {
   if (connected_list_.find(proc_name) != connected_list_.end()) {

@@ -17,19 +17,19 @@ int main(){
     spd.addProcess("Riddhi");
     spd.setKeyFile("/home/jasper/Development/SPEED/speed-cpp/config.key");
     spd.start();
-    // while (true) {
-    //     std::string s;
-    //     std::cout << "Enter a message to send: " << std::flush;
-    //     std::getline(std::cin, s);   // use getline now
-    //     if (!s.empty()){
-    //         if(s == "--exit"){
-    //             break;
-    //         }
-    //         spd.sendMessage(s, "Riddhi K.");
-    //     }
-    // }
+    while (true) {
+        std::string s;
+        std::cout << "Enter a message to send: " << std::flush;
+        std::getline(std::cin, s);   // use getline now
+        if (!s.empty()){
+            if(s == "--exit"){
+                break;
+            }
+            spd.sendMessage(s, "Riddhi");
+        }
+    }
 
-    // std::cout << "[INFO]: Killing the process\n";
+    std::cout << "[INFO]: Killing the process\n";
     std::this_thread::sleep_for(std::chrono::milliseconds(1200000));
 
 }

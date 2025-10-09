@@ -34,6 +34,7 @@ public:
   void resume();
   void start();
   bool addProcess(const std::string &);
+  std::string ping(const std::string &) const;
   SPEED(const std::string &, const ThreadMode &, const std::filesystem::path &);
   SPEED(const std::string &, const ThreadMode &);
 

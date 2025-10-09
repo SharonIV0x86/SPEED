@@ -105,16 +105,10 @@ void SPEED::kill() {
 }
 
 void SPEED::sendMessage(const std::string &msg, const std::string &rec_name) {
-  Message message;
-  message.header.version = SPEED_VERSION;
-  message.header.type = MessageType::MSG;
-  message.header.sender_pid = Utils::getProcessID();
-  message.header.timestamp = std::stoull(Utils::getCurrentTimestamp());
+  Message message = Message::construct_MSG(msg);
   message.header.seq_num = seq_number_;
   message.header.sender = self_proc_name_;
   message.header.reciever = rec_name;
-
-  message.payload = std::vector<uint8_t>(msg.begin(), msg.end());
   std::vector<uint64_t> k(key_.begin(), key_.end());
   EncryptionManager::Encrypt(message, k);
   BinaryManager::writeBinary(message, speed_dir_, seq_number_, rec_name);
@@ -231,5 +225,10 @@ void SPEED::watcherMultiThread_() {
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
 }
-
+std::string SPEED::ping(const std::string &proc_name) const {
+  Message ping_message = Message::construct_PING(proc_name);
+  std::string payload =
+      std::string(ping_message.payload.begin(), ping_message.payload.end());
+  return payload;
+}
 } // namespace SPEED
