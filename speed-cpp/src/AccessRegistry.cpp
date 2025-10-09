@@ -125,4 +125,9 @@ bool AccessRegistry::check_connection(const std::string &proc_name) const {
 
   return true;
 }
+void AccessRegistry::try_connect_all() {
+  for (const std::string &proc_name : allowedProcesses_) {
+    connect_to(proc_name);
+  }
+}
 } // namespace SPEED

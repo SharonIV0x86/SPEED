@@ -25,6 +25,7 @@ private:
   void putAccessFile();
   void incrementalBuildGlobalRegistry();
   void printRegistry() const;
+  void try_connect_all();
   std::unordered_set<std::string> allowedProcesses_;
   std::unordered_set<std::string> global_registry_;
   std::unordered_set<std::string> connected_list_;

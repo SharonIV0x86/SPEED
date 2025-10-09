@@ -170,7 +170,6 @@ void SPEED::processFile_(const std::filesystem::path &file_path) {
 
   // also call the callback from here as well.
 }
-
 void SPEED::watcherSingleThread_() {
   std::lock_guard<std::mutex> lock(single_mtx_);
   // std::cout << "[INFO]: Starting Single-Thread Blocking Watcher\n";

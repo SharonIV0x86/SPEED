@@ -71,7 +71,6 @@ private:
 
   void watcherSingleThread_(); // blocking call for single-thread mode
   void watcherMultiThread_();  // non-blocking call for multi-thread mode
-
   void processFile_(const std::filesystem::path &file_path);
   std::optional<long long>
   extractSeqFromFilename_(const std::string &filename) const;
