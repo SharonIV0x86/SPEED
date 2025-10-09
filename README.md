@@ -31,7 +31,7 @@ Assume that the process here in the picture is ``P1``.
 This is the first step in which the folder of the current process is created for communication. Assume that the name of the process itself is ``P1``. So whenever created for the first time the process will try to create the ``P1`` folder in the specified ``SPEED`` directory. If the process folder with the same process already exists it will be deleted and a new one will be created.
 
 ## Step 2
-Once the process folder is created in ``step 1`` we have to build the global registry. Traverse the whole ``access_registry`` folder and pick up the files strictly ending with ``.oregistry`` and add them to the ``global-registry``. 
+Once the process folder is created in ``step 1`` we have to build the global registry. Traverse the whole ``access_registry`` folder and pick up the files strictly ending with ``.oregistry`` and add them to the ``global_registry_``. 
 
 ## Step 3
 Now the current process P1 itself has to put its access file in the ``access_registry``. So it puts a file named ``P1.iregistry`` intermediate file, and writes the name of the process ``P1`` to that file. Once the writing stage it completed the registry file is renamed to ``P1.oregistry`` indicating that the file has been written and can be processed. 
@@ -60,7 +60,7 @@ Now the SPEED will try to send the message ``"Hello"`` to both ``P2`` and ``P3``
 Now the main thing here is to validate whether the processes P2 and P3 are available to connect or not and whether we have access of them are not.
 
 The first thing that happens is that the SPEED checks with the ``global_registry_`` to ensure that the P2 and P3 processes have arrived in the ``global_registry_`` or not.
-If they are found in the ``global_registry_`` then well and good and if not then next things happen in ``step 2``
+If they are found in the ``global_registry_`` then well and good and if not then next things happen in ``step 3``
 ## Step 3
 Assume that ``P2`` is in the ``global_registry_`` but ``P3`` is not. This can most likely means that when ``P3`` arrived ``P1``(current process) was not notified. So the ``global_registry_`` snapshot that ``P1`` has is outdated. 
 So ``P1`` again traverses the ``access_registry`` folder and incrementally builds its ``global_registry_``. And assume that ``P1`` finds ``P3`` in the global registry. 
@@ -115,3 +115,4 @@ Assume that ``P1`` finds the name of the ``P2`` in its access list which means t
 
 ## Step 7 (final)
 Now in the same way ``P1`` processes the message sent from ``P3`` in the file with sequence number ``23`` and file name ``0023_3ehg-klfd-90ff-jk87.ospeed``.
+

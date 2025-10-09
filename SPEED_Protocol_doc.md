@@ -1,0 +1,91 @@
+# IPC Protocol Documentation
+
+This document outlines the key flows in the IPC (Inter-Process Communication) protocol, including process startup, message sending, and message receiving. The descriptions assume specific example processes (e.g., `P1`, `P2`) for illustration purposes.
+
+## Process Arrival/Startup Flow (First Time)
+
+This section describes the initial startup sequence for a process, using `P1` as an example.
+
+### Step 1
+In the initial step, a dedicated folder for the current process is created to facilitate communication. For process `P1`, this involves creating a folder named `P1` within the specified `SPEED` directory. If a folder with the same name already exists, it is deleted, and a new one is created.
+
+### Step 2
+After creating the process folder in Step 1, the global registry is constructed. This requires traversing the entire `access_registry` folder, identifying files that strictly end with `.oregistry`, and adding them to the `global_registry_`.
+
+### Step 3
+The current process `P1` then registers its access file in the `access_registry`. It creates an intermediate file named `P1.iregistry` and writes the process name `P1` to it. Once writing is complete, the file is renamed to `P1.oregistry` to indicate that it is ready for processing.
+
+### Step 4
+In this step, `P1` compares its `access_list_` with the `global_registry_` to verify whether the process names listed in `access_list_` are available for connection in the `global_registry_`.
+
+### Step 5
+Connection requests are now sent to processes that appear in both the `access_list_` and the `global_registry_`. Process `P1` places a connection request message of type `CON_REQ` in the respective folders of all qualifying processes.
+
+### Step 6
+After sending the connection requests, `P1` awaits `CON_ACPT` responses. For example, if `P1` sends a `CON_REQ` to `P2`, `P2` checks whether `P1` is in its `access_list_`. If so, `P2` responds with a `CON_ACPT`.
+
+### Step 7
+Following the dispatch of connection requests, `P1` waits for 500ms to collect all `CON_ACPT` responses. As these are received, the corresponding processes are added to `P1`'s `connected_list_`, signifying successful connections.
+
+### Step 8 (Final)
+With connections established, communication can commence.
+
+## Process Message Sending Flow
+
+This section details the flow for sending messages from one process to others, using `P1` sending to `P2`, `P3`, and `P4` as an example.
+
+### Step 1
+The user or developer invokes the function:
+
+```cpp
+speed.sendMessage("Hello", ["P2", "P3"]);
+```
+
+This instructs SPEED to transmit the message `"Hello"` to both `P2` and `P3`.
+
+### Step 2
+The system first validates the availability and accessibility of `P2` and `P3`. SPEED checks the `global_registry_` to confirm whether `P2` and `P3` are present. If found, proceed; otherwise, continue to Step 3.
+
+### Step 3
+Suppose `P2` is in the `global_registry_`, but `P3` is not. This likely indicates that `P3`'s arrival was not detected by `P1`, rendering `P1`'s `global_registry_` snapshot outdated. `P1` re-traverses the `access_registry` folder to incrementally update its `global_registry_`. Assume `P3` is now found.
+
+### Step 4
+With `P3` available but not yet connected, `P1` sends a `CON_REQ` to `P3`. Assuming `P3` accepts and responds with `CON_ACPT`, the connection is established. `P1` adds `P3` to its `connected_list_`, and vice versa.
+
+### Step 5 (Final)
+At this point, both `P2` and `P3` are ready for messaging. `P1` sends the `"Hello"` message to both, which they receive and process.
+
+## Process Message Receiving Flow
+
+This section describes the flow for receiving messages, using `P2` and `P3` sending `"Hello"` and `"Welcome"` to `P1` as an example, assuming `P1` is available.
+
+### Step 1
+Both `P2` and `P3` encrypt and write their message binary files into `P1`'s process folder.
+
+### Step 2
+`P1` detects these files. For illustration:
+- `P2` writes `"Hello"` to `0021_fghg-43fd-34ff-234t.ospeed`.
+- `P3` writes `"Welcome"` to `0023_3ehg-klfd-90ff-jk87.ospeed`.
+
+### Step 3
+`P1` focuses on the sequence numbers, extracting them and storing in a sorted mapping (key: sequence number, value: full filename) to maintain FIFO order:
+
+```
+    key     value
+    21  :  0021_fghg-43fd-34ff-234t.ospeed
+    23  :  0023_3ehg-klfd-90ff-jk87.ospeed
+```
+
+`P1` processes the file with the lowest sequence number first.
+
+### Step 4
+`P1` reads the binary file `0021_fghg-43fd-34ff-234t.ospeed` and passes it to the binary manager.
+
+### Step 5
+Using known offsets, `P1` jumps to the `reciever_name` field, decrypts it, and verifies if it matches `P1`'s name to confirm the message is intended for it. If not, the file is deleted; otherwise, proceed.
+
+### Step 6
+Assuming the message is for `P1`, it next checks if the sender (`P2`) is in its `access_list_` to ensure permission. If found, `P1` decrypts and processes the full message.
+
+### Step 7 (Final)
+`P1` similarly processes the message from `P3` in file `0023_3ehg-klfd-90ff-jk87.ospeed` with sequence number `23`.

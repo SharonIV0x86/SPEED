@@ -3,3 +3,5 @@
 .vscode/*
 *.bin
 speed-cpp/app
+speed-cpp/build
+
