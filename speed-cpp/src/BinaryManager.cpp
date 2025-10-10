@@ -56,7 +56,7 @@ Message BinaryManager::readBinary(const std::filesystem::path &path) {
   msg.header.sender = read_string(in);
   msg.header.reciever = read_string(in);
 
-  // 🔐 Read nonce (24 bytes)
+  // Read nonce (24 bytes)
   in.read(reinterpret_cast<char *>(msg.header.nonce.data()),
           msg.header.nonce.size());
 

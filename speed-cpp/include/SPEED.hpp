@@ -34,13 +34,11 @@ public:
   void resume();
   void start();
   bool addProcess(const std::string &);
-  std::string ping(const std::string &) const;
   SPEED(const std::string &, const ThreadMode &, const std::filesystem::path &);
   SPEED(const std::string &, const ThreadMode &);
 
   bool setKeyFile(const std::filesystem::path &);
   void setCallback(std::function<void(const PMessage &)> cb);
-  // void trigger();
   ~SPEED();
 
 private:
@@ -75,11 +73,13 @@ private:
   void processFile_(const std::filesystem::path &file_path);
   std::optional<long long>
   extractSeqFromFilename_(const std::string &filename) const;
+  void ping_(const std::string &);
+  void pong_(const std::string &);
 
   using FileCandidate = std::pair<long long, std::filesystem::path>;
   struct CompareSeq {
     bool operator()(const FileCandidate &a, const FileCandidate &b) const {
-      return a.first > b.first; // min-heap by seq
+      return a.first > b.first;
     }
   };
   std::priority_queue<FileCandidate, std::vector<FileCandidate>, CompareSeq>

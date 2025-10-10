@@ -41,6 +41,64 @@ struct Message {
     message.payload = std::vector<uint8_t>(msg.begin(), msg.end());
     return message;
   }
+  static Message construct_CON_REQ(const std::string &reciever_name) {
+    Message message;
+    message.header.version = SPEED_VERSION;
+    message.header.type = MessageType::CON_REQ;
+    message.header.sender_pid = Utils::getProcessID();
+    message.header.timestamp = std::stoull(Utils::getCurrentTimestamp());
+    message.header.seq_num = -1;
+    message.header.sender = "";
+    message.header.reciever = reciever_name;
+
+    const std::string m = "CON_REQ_";
+    message.payload = std::vector<uint8_t>(m.begin(), m.end());
+    return message;
+  }
+  static Message construct_CON_RES(const std::string &reciever_name) {
+    Message message;
+    message.header.version = SPEED_VERSION;
+    message.header.type = MessageType::CON_RES;
+    message.header.sender_pid = Utils::getProcessID();
+    message.header.timestamp = std::stoull(Utils::getCurrentTimestamp());
+    message.header.seq_num = -1;
+    message.header.sender = "";
+    message.header.reciever = reciever_name;
+
+    const std::string m = "CON_RES_";
+    message.payload = std::vector<uint8_t>(m.begin(), m.end());
+    return message;
+  }
+  static Message construct_INVOKE_METHOD(const std::string &method_name,
+                                         const std::string &reciever_name) {
+    Message message;
+    message.header.version = SPEED_VERSION;
+    message.header.type = MessageType::INVOKE_METHOD;
+    message.header.sender_pid = Utils::getProcessID();
+    message.header.timestamp = std::stoull(Utils::getCurrentTimestamp());
+    message.header.seq_num = -1;
+    message.header.sender = "";
+    message.header.reciever = reciever_name;
+
+    message.payload =
+        std::vector<uint8_t>(method_name.begin(), method_name.end());
+    return message;
+  }
+  static Message construct_EXIT_NOTIF(const std::string &reciever_name) {
+    Message message;
+    message.header.version = SPEED_VERSION;
+    message.header.type = MessageType::EXIT_NOTIF;
+    message.header.sender_pid = Utils::getProcessID();
+    message.header.timestamp = std::stoull(Utils::getCurrentTimestamp());
+    message.header.seq_num = -1;
+    message.header.sender = "";
+    message.header.reciever = reciever_name;
+
+    const std::string m = "EXIT_NOTIF_";
+    message.payload = std::vector<uint8_t>(m.begin(), m.end());
+    return message;
+  }
+
   static Message construct_PING(const std::string &rec_name) {
     Message message;
     message.header.version = SPEED_VERSION;
@@ -50,9 +108,24 @@ struct Message {
     message.header.seq_num = -1;
     message.header.sender = "";
     message.header.reciever = rec_name;
+
     const std::string m = "PONG";
     message.payload = std::vector<uint8_t>(m.begin(), m.end());
 
+    return message;
+  }
+  static Message construct_PONG(const std::string &reciever_name) {
+    Message message;
+    message.header.version = SPEED_VERSION;
+    message.header.type = MessageType::PONG;
+    message.header.sender_pid = Utils::getProcessID();
+    message.header.timestamp = std::stoull(Utils::getCurrentTimestamp());
+    message.header.seq_num = -1;
+    message.header.sender = "";
+    message.header.reciever = reciever_name;
+
+    const std::string m = "PONG";
+    message.payload = std::vector<uint8_t>(m.begin(), m.end());
     return message;
   }
 };

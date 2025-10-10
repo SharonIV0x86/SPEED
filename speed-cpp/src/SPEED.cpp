@@ -225,10 +225,25 @@ void SPEED::watcherMultiThread_() {
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
 }
-std::string SPEED::ping(const std::string &proc_name) const {
-  Message ping_message = Message::construct_PING(proc_name);
-  std::string payload =
-      std::string(ping_message.payload.begin(), ping_message.payload.end());
-  return payload;
+void SPEED::ping_(const std::string &reciever_name) {
+  Message ping_message = Message::construct_PING(reciever_name);
+  ping_message.header.seq_num = seq_number_;
+  ping_message.header.sender = self_proc_name_;
+  std::vector<uint64_t> k(key_.begin(), key_.end());
+  EncryptionManager::Encrypt(ping_message, k);
+  BinaryManager::writeBinary(ping_message, speed_dir_, seq_number_,
+                             reciever_name);
+  seq_number_.fetch_add(1, std::memory_order_relaxed);
+}
+void SPEED::pong_(const std::string &reciever_name) {
+  Message pong_message = Message::construct_PONG(reciever_name);
+  pong_message.header.seq_num = seq_number_;
+  pong_message.header.sender = self_proc_name_;
+
+  std::vector<uint64_t> k(key_.begin(), key_.end());
+  EncryptionManager::Encrypt(pong_message, k);
+  BinaryManager::writeBinary(pong_message, speed_dir_, seq_number_,
+                             reciever_name);
+  seq_number_.fetch_add(1, std::memory_order_relaxed);
 }
 } // namespace SPEED
