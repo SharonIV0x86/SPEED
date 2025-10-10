@@ -118,6 +118,7 @@ void AccessRegistry::removeAccessFile() {
   std::filesystem::remove(ac_removal_path_);
 }
 bool AccessRegistry::check_connection(const std::string &proc_name) const {
+  std::lock_guard<std::mutex> lock(mtx_);
   if (connected_list_.find(proc_name) == connected_list_.end())
     return false;
 

@@ -127,6 +127,7 @@ void SPEED::sendMessage(const std::string &msg,
     std::cout << "[ERROR] Message validation failed! Before." << "\n";
     Message::print_message(message);
   }
+  Message::print_message(message);
   EncryptionManager::Encrypt(message, k);
   BinaryManager::writeBinary(message, speed_dir_, seq_number_, reciever_name);
 
