@@ -104,21 +104,29 @@ void SPEED::kill() {
   access_list_->removeAccessFile();
 }
 
-void SPEED::sendMessage(const std::string &msg, const std::string &reciever_name) {
-  if(!access_list_->checkGlobalRegistry(reciever_name)){
-    std::cout << "[WARN] Process: " << reciever_name << " not in global registry list" << "\n";
+void SPEED::sendMessage(const std::string &msg,
+                        const std::string &reciever_name) {
+  if (!access_list_->checkGlobalRegistry(reciever_name)) {
+    std::cout << "[WARN] Process: " << reciever_name
+              << " not in global registry list" << "\n";
   }
-  if(!access_list_->checkAccess(reciever_name)){
-    std::cout << "[WARN] Process: " << reciever_name << " not in access list" << "\n";
+  if (!access_list_->checkAccess(reciever_name)) {
+    std::cout << "[WARN] Process: " << reciever_name << " not in access list"
+              << "\n";
   }
-  if(!access_list_->check_connection(reciever_name)){
-    std::cout << "[WARN] Process: " << reciever_name << " not in connection list" << "\n";
+  if (!access_list_->check_connection(reciever_name)) {
+    std::cout << "[WARN] Process: " << reciever_name
+              << " not in connection list" << "\n";
   }
   Message message = Message::construct_MSG(msg);
   message.header.seq_num = seq_number_;
   message.header.sender = self_proc_name_;
   message.header.reciever = reciever_name;
   std::vector<uint64_t> k(key_.begin(), key_.end());
+  if (!Message::validate_message(message, self_proc_name_)) {
+    std::cout << "[ERROR] Message validation failed! Before." << "\n";
+    Message::print_message(message);
+  }
   EncryptionManager::Encrypt(message, k);
   BinaryManager::writeBinary(message, speed_dir_, seq_number_, reciever_name);
 
@@ -145,16 +153,7 @@ void SPEED::processFile_(const std::filesystem::path &file_path) {
   Message msg = BinaryManager::readBinary(file_path);
   std::vector<uint64_t> k(key_.begin(), key_.end());
   EncryptionManager::Decrypt(msg, k);
-  std::string version = std::to_string(msg.header.version);
-  MessageType type = msg.header.type;
-  std::string sender_pid = std::to_string(msg.header.sender_pid);
-  uint64_t timestamp = msg.header.timestamp;
-  std::string seq_num = std::to_string(msg.header.seq_num);
-  std::string sender = msg.header.sender;
-  std::string reciever = msg.header.reciever;
-  std::string payload = std::string(msg.payload.begin(), msg.payload.end());
-
-  PMessage mm(sender, payload, timestamp);
+  PMessage mm = Message::destruct_message(msg);
   callback_(mm);
   std::filesystem::remove(file_path, ec);
   {
@@ -192,7 +191,7 @@ void SPEED::watcherSingleThread_() {
     }
 
     // Nothing to do → sleep
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
   }
 }
 void SPEED::watcherMultiThread_() {
@@ -220,9 +219,11 @@ void SPEED::watcherMultiThread_() {
       processFile_(path);
       continue;
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
   }
 }
+void SPEED::ping(const std::string &reciever_name) { ping_(reciever_name); }
+void SPEED::pong(const std::string &reciever_name) { pong_(reciever_name); }
 void SPEED::ping_(const std::string &reciever_name) {
   Message ping_message = Message::construct_PING(reciever_name);
   ping_message.header.seq_num = seq_number_;

@@ -121,7 +121,7 @@ struct Message {
     message.header.sender = "";
     message.header.reciever = rec_name;
 
-    const std::string m = "PONG";
+    const std::string m = "PING";
     message.payload = std::vector<uint8_t>(m.begin(), m.end());
 
     return message;
@@ -140,10 +140,34 @@ struct Message {
     message.payload = std::vector<uint8_t>(m.begin(), m.end());
     return message;
   }
-  static PMessage destruct_MSG(const Message& message){
-    const std::string m = std::string(message.payload.begin(), message.payload.end());
+  static PMessage destruct_message(const Message &message) {
+    const std::string m =
+        std::string(message.payload.begin(), message.payload.end());
     PMessage message_(message.header.sender, m, message.header.timestamp);
     return message_;
+  }
+  static bool validate_message(const Message &message,
+                               const std::string &self_proc_name) {
+    if (message.header.version != SPEED_VERSION) {
+      std::cout << "[ERROR]: Mismatch version\n";
+      return false;
+    }
+    if (message.header.sender != self_proc_name) {
+      std::cout << "[ERROR]: Mismatch receiver\n";
+      return false;
+    }
+    return true;
+  }
+  static void print_message(const Message &message) {
+    std::cout << "[PRINT] SPEED Version: " << message.header.version << "\n";
+    std::cout << "[PRINT]: " << (int)message.header.type << "\n";
+    std::cout << "[PRINT] Sender PID: " << message.header.sender_pid << "\n";
+    std::cout << "[PRINT] Seq Number: " << message.header.seq_num << "\n";
+    std::cout << "[PRINT] Sender: " << message.header.sender << "\n";
+    std::cout << "[PRINT] Receiver: " << message.header.reciever << "\n";
+    std::cout << "[PRINT] Payload: "
+              << std::string(message.payload.begin(), message.payload.end())
+              << "\n";
   }
 };
 } // namespace SPEED

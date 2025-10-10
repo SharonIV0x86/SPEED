@@ -20,8 +20,13 @@ int main(){
         if (!s.empty()){
             if(s == "--exit"){
                 break;
+            }else if(s == "ping"){
+                spd.ping("Anirudh");
+            }else if(s == "pong"){
+                spd.pong("Riddhi");
+            }else{
+                spd.sendMessage(s, "Anirudh");
             }
-            spd.sendMessage(s, "Anirudh");
         }
     }
     

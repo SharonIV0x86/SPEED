@@ -25,7 +25,15 @@ int main(){
             if(s == "--exit"){
                 break;
             }
-            spd.sendMessage(s, "Riddhi");
+            else if(s == "ping"){
+                spd.ping("Riddhi");
+            }
+            else if(s == "pong"){
+                spd.pong("Riddhi");
+            }
+            else{
+                spd.sendMessage(s, "Riddhi");
+            }
         }
     }
 
