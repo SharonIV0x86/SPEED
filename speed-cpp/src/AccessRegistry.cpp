@@ -9,7 +9,6 @@ AccessRegistry::AccessRegistry(const std::filesystem::path &ac_path,
     Utils::createAccessRegistryDir(ac_path);
   }
   if (Utils::fileExists(ac_path_ / (proc_name + ".oregistry"))) {
-    // throw std::runtime_error("[ERROR]: Access file already exists!");
     removeAccessFile();
   }
   this->proc_name_ = proc_name;

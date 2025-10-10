@@ -25,6 +25,18 @@ struct MessageHeader {
   std::string reciever;
   std::array<uint8_t, 24> nonce; // 24 bytes for XChaCha20-Poly1305
 };
+struct PMessage {
+public:
+  std::string sender_name;
+  std::string message;
+  uint64_t timestamp;
+  PMessage(const std::string &sender_name, const std::string &message,
+           const uint64_t &timestamp) {
+    this->sender_name = sender_name;
+    this->message = message;
+    this->timestamp = timestamp;
+  }
+};
 
 struct Message {
   MessageHeader header;
@@ -128,17 +140,10 @@ struct Message {
     message.payload = std::vector<uint8_t>(m.begin(), m.end());
     return message;
   }
-};
-struct PMessage {
-public:
-  std::string sender_name;
-  std::string message;
-  std::string timestamp;
-  PMessage(const std::string &sender_name, const std::string &message,
-           const std::string &timestamp) {
-    this->sender_name = sender_name;
-    this->message = message;
-    this->timestamp = timestamp;
+  static PMessage destruct_MSG(const Message& message){
+    const std::string m = std::string(message.payload.begin(), message.payload.end());
+    PMessage message_(message.header.sender, m, message.header.timestamp);
+    return message_;
   }
 };
 } // namespace SPEED

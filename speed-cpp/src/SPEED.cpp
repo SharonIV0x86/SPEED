@@ -104,14 +104,23 @@ void SPEED::kill() {
   access_list_->removeAccessFile();
 }
 
-void SPEED::sendMessage(const std::string &msg, const std::string &rec_name) {
+void SPEED::sendMessage(const std::string &msg, const std::string &reciever_name) {
+  if(!access_list_->checkGlobalRegistry(reciever_name)){
+    std::cout << "[WARN] Process: " << reciever_name << " not in global registry list" << "\n";
+  }
+  if(!access_list_->checkAccess(reciever_name)){
+    std::cout << "[WARN] Process: " << reciever_name << " not in access list" << "\n";
+  }
+  if(!access_list_->check_connection(reciever_name)){
+    std::cout << "[WARN] Process: " << reciever_name << " not in connection list" << "\n";
+  }
   Message message = Message::construct_MSG(msg);
   message.header.seq_num = seq_number_;
   message.header.sender = self_proc_name_;
-  message.header.reciever = rec_name;
+  message.header.reciever = reciever_name;
   std::vector<uint64_t> k(key_.begin(), key_.end());
   EncryptionManager::Encrypt(message, k);
-  BinaryManager::writeBinary(message, speed_dir_, seq_number_, rec_name);
+  BinaryManager::writeBinary(message, speed_dir_, seq_number_, reciever_name);
 
   seq_number_.fetch_add(1, std::memory_order_relaxed);
 }
@@ -139,7 +148,7 @@ void SPEED::processFile_(const std::filesystem::path &file_path) {
   std::string version = std::to_string(msg.header.version);
   MessageType type = msg.header.type;
   std::string sender_pid = std::to_string(msg.header.sender_pid);
-  std::string timestamp = std::to_string(msg.header.timestamp);
+  uint64_t timestamp = msg.header.timestamp;
   std::string seq_num = std::to_string(msg.header.seq_num);
   std::string sender = msg.header.sender;
   std::string reciever = msg.header.reciever;
@@ -147,22 +156,11 @@ void SPEED::processFile_(const std::filesystem::path &file_path) {
 
   PMessage mm(sender, payload, timestamp);
   callback_(mm);
-  // std::cout << "\n\n[INFO]: Got file: " << file_path << "\n";
-  // std::cout << "Read Object Version: " << version << "\n";
-  // std::cout << "Read Object Type: " << (int)type << "\n";
-  // std::cout << "Read Object sender_pid: " << sender_pid << "\n";
-  // std::cout << "Read Object timestamp: " << timestamp << "\n";
-  // std::cout << "Read Object seq_num: " << seq_num << "\n";
-  // std::cout << "Read Object sender: " << sender << "\n";
-  // std::cout << "Read Object reciever: " << reciever << "\n";
-  // std::cout << "Read Object Payload:" << payload << "\n";
   std::filesystem::remove(file_path, ec);
   {
     std::lock_guard<std::mutex> lock(seen_mutex_);
     seen_.erase(file_path.filename().string());
   }
-
-  // also call the callback from here as well.
 }
 void SPEED::watcherSingleThread_() {
   std::lock_guard<std::mutex> lock(single_mtx_);
