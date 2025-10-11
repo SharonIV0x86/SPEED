@@ -20,6 +20,9 @@ public:
   bool connect_to(const std::string &);
   bool checkGlobalRegistry(const std::string &proc_name) const;
   bool check_connection(const std::string &proc_name) const;
+  const std::unordered_set<std::string> getGlobalRegistry() const;
+  const std::unordered_set<std::string> getAccessList() const;
+  const std::unordered_set<std::string> getConnectedList() const;
 
 private:
   void putAccessFile();

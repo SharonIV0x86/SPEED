@@ -38,6 +38,32 @@ public:
   void pong(const std::string &);
   SPEED(const std::string &, const ThreadMode &, const std::filesystem::path &);
   SPEED(const std::string &, const ThreadMode &);
+  void printGlobalRegistry_() {
+    std::cout << "----------Global Rrgistry----------\n";
+    auto gr = access_list_->getGlobalRegistry();
+    for (const auto &entry : gr) {
+      std::cout << entry << "\n";
+    }
+    std::cout << "----------Global Rrgistry----------\n";
+  }
+
+  void printAccessList_() {
+    std::cout << "----------Access List----------\n";
+    auto gr = access_list_->getAccessList();
+    for (const auto &entry : gr) {
+      std::cout << entry << "\n";
+    }
+    std::cout << "----------Access List----------\n";
+  }
+
+  void printConnectedList_() {
+    std::cout << "----------Connected List----------\n";
+    auto gr = access_list_->getConnectedList();
+    for (const auto &entry : gr) {
+      std::cout << entry << "\n";
+    }
+    std::cout << "----------Connected List----------\n";
+  }
 
   bool setKeyFile(const std::filesystem::path &);
   void setCallback(std::function<void(const PMessage &)> cb);
@@ -77,7 +103,6 @@ private:
   extractSeqFromFilename_(const std::string &filename) const;
   void ping_(const std::string &);
   void pong_(const std::string &);
-
   using FileCandidate = std::pair<long long, std::filesystem::path>;
   struct CompareSeq {
     bool operator()(const FileCandidate &a, const FileCandidate &b) const {
