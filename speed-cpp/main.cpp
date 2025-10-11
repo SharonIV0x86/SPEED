@@ -25,11 +25,23 @@ int main(){
             if(s == "--exit"){
                 break;
             }
-            else if(s == "ping"){
+            else if(s == "--ping"){
                 spd.ping("Riddhi");
             }
-            else if(s == "pong"){
+            else if(s == "--pong"){
                 spd.pong("Riddhi");
+            }
+            else if(s == "--kill"){
+                spd.kill();
+            }
+            else if(s == "--getGR"){
+                spd.printGlobalRegistry_();
+            }
+            else if(s == "--getAL"){
+                spd.printAccessList_();
+            }
+            else if(s == "--getCL"){
+                spd.printConnectedList_();
             }
             else{
                 spd.sendMessage(s, "Riddhi");
