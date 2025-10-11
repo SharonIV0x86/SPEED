@@ -13,7 +13,9 @@ public:
   AccessRegistry(const std::filesystem::path &, const std::string &);
 
   void addProcessToList(const std::string &proc_name);
-  bool removeProcessFromList(const std::string &proc_name);
+  bool removeProcessFromGlobalRegistry(const std::string &proc_name);
+  bool removeProcessFromAccessList(const std::string &proc_name);
+  bool removeProcessFromConnectedList(const std::string &proc_name);
   void removeAccessFile();
   const std::filesystem::path &getAccessRegistryPath() const;
   bool checkAccess(const std::string &proc_name) const;

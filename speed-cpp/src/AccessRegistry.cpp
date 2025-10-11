@@ -104,7 +104,19 @@ bool AccessRegistry::connect_to(const std::string &proc_name) {
   connected_list_.insert(proc_name);
   return true;
 }
-bool AccessRegistry::removeProcessFromList(const std::string &proc_name) {
+bool AccessRegistry::removeProcessFromGlobalRegistry(
+    const std::string &proc_name) {
+  std::lock_guard<std::mutex> lock(mtx_);
+  auto it = global_registry_.find(proc_name);
+  if (it != global_registry_.end()) {
+    global_registry_.erase(it);
+    std::cout << "[INFO]: Process removed from Global Registry\n";
+    return true;
+  }
+  std::cout << "[WARN]: Process not in Global Registry\n";
+  return false;
+}
+bool AccessRegistry::removeProcessFromAccessList(const std::string &proc_name) {
   std::lock_guard<std::mutex> lock(mtx_);
 
   auto it = allowedProcesses_.find(proc_name);
@@ -114,6 +126,17 @@ bool AccessRegistry::removeProcessFromList(const std::string &proc_name) {
     return true;
   }
   std::cout << "[WARN]: Process not in Allowed Registry\n";
+  return false;
+}
+bool AccessRegistry::removeProcessFromConnectedList(
+    const std::string &proc_name) {
+  auto it = connected_list_.find(proc_name);
+  if (it != connected_list_.end()) {
+    connected_list_.erase(it);
+    std::cout << "[INFO]: Process removed from Connected List\n";
+    return true;
+  }
+  std::cout << "[WARN]: Process not in Connected List\n";
   return false;
 }
 void AccessRegistry::removeAccessFile() {

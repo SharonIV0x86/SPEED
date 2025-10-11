@@ -146,14 +146,31 @@ struct Message {
     PMessage message_(message.header.sender, m, message.header.timestamp);
     return message_;
   }
-  static bool validate_message(const Message &message,
-                               const std::string &self_proc_name) {
+  static bool validate_message_sent(const Message &message,
+                                    const std::string &self_proc_name,
+                                    const std::string &reciever_name) {
     if (message.header.version != SPEED_VERSION) {
       std::cout << "[ERROR]: Mismatch version\n";
       return false;
     }
     if (message.header.sender != self_proc_name) {
-      std::cout << "[ERROR]: Mismatch receiver\n";
+      std::cout << "[ERROR]: Mismatch Sender\n";
+      return false;
+    }
+    if (message.header.reciever != reciever_name) {
+      std::cout << "[ERROR]: Mismatch Reciever\n";
+      return false;
+    }
+    return true;
+  }
+  static bool validate_message_recieved(const Message &message,
+                                        const std::string &self_proc_name) {
+    if (message.header.version != SPEED_VERSION) {
+      std::cout << "[ERROR]: Mismatch version\n";
+      return false;
+    }
+    if (message.header.reciever != self_proc_name) {
+      std::cout << "[ERROR]: Mismatch reciever\n";
       return false;
     }
     return true;

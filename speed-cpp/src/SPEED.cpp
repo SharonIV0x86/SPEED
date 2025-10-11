@@ -135,7 +135,8 @@ void SPEED::sendMessage(const std::string &msg,
   message.header.sender = self_proc_name_;
   message.header.reciever = reciever_name;
   std::vector<uint64_t> k(key_.begin(), key_.end());
-  if (!Message::validate_message(message, self_proc_name_)) {
+  if (!Message::validate_message_sent(message, self_proc_name_,
+                                      reciever_name)) {
     std::cout << "[ERROR] Message validation failed! Before." << "\n";
     Message::print_message(message);
   }
@@ -165,13 +166,32 @@ void SPEED::processFile_(const std::filesystem::path &file_path) {
   Message msg = BinaryManager::readBinary(file_path);
   std::vector<uint64_t> k(key_.begin(), key_.end());
   EncryptionManager::Decrypt(msg, k);
-  if(!Message::validate_message(msg, self_proc_name_)){
+  if (!Message::validate_message_recieved(msg, self_proc_name_)) {
     std::cout << "[ERROR]: Invalid Message recieved! Not Processing.\n";
     Message::print_message(msg);
-    return ;
+    return;
   }
-  PMessage mm = Message::destruct_message(msg);
-  callback_(mm);
+  switch (msg.header.type) {
+  case MessageType::MSG: {
+    PMessage mm = Message::destruct_message(msg);
+    callback_(mm);
+    break;
+  }
+  case MessageType::EXIT_NOTIF: {
+    const std::string s(msg.payload.begin(), msg.payload.end());
+    std::cout << "[DEBUG]: Recieved and EXIT_NOTIF for: " << s << "\n";
+    access_list_->removeProcessFromGlobalRegistry(msg.header.sender);
+    access_list_->removeProcessFromAccessList(msg.header.sender);
+    access_list_->removeProcessFromConnectedList(msg.header.sender);
+    break;
+  }
+  }
+  // if (msg.header.type == MessageType::EXIT_NOTIF) {
+
+  //   return;
+  // }
+  // PMessage mm = Message::destruct_message(msg);
+  // callback_(mm);
   std::filesystem::remove(file_path, ec);
   {
     std::lock_guard<std::mutex> lock(seen_mutex_);
