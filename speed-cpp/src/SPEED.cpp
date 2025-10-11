@@ -102,6 +102,18 @@ void SPEED::kill() {
   watcher_should_exit_.store(true);
   watcher_running_.store(false);
   access_list_->removeAccessFile();
+  const std::unordered_set<std::string> acl = access_list_->getAccessList();
+  std::vector<uint64_t> k(key_.begin(), key_.end());
+  for (const std::string &entry : acl) {
+    std::cout << "[DEBUG]: Broadcasting exit notif to: " << entry << "\n\n";
+    Message exit_message = Message::construct_EXIT_NOTIF(entry);
+    exit_message.header.seq_num = seq_number_;
+    exit_message.header.sender = self_proc_name_;
+    EncryptionManager::Encrypt(exit_message, k);
+    BinaryManager::writeBinary(exit_message, speed_dir_, seq_number_, entry);
+
+    seq_number_.fetch_add(1, std::memory_order_relaxed);
+  }
 }
 
 void SPEED::sendMessage(const std::string &msg,
@@ -127,7 +139,6 @@ void SPEED::sendMessage(const std::string &msg,
     std::cout << "[ERROR] Message validation failed! Before." << "\n";
     Message::print_message(message);
   }
-  Message::print_message(message);
   EncryptionManager::Encrypt(message, k);
   BinaryManager::writeBinary(message, speed_dir_, seq_number_, reciever_name);
 
