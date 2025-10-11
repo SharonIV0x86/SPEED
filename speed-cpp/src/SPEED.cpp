@@ -121,6 +121,7 @@ void SPEED::sendMessage(const std::string &msg,
   if (!access_list_->checkGlobalRegistry(reciever_name)) {
     std::cout << "[WARN] Process: " << reciever_name
               << " not in global registry list" << "\n";
+    access_list_->incrementalBuildGlobalRegistry();
   }
   if (!access_list_->checkAccess(reciever_name)) {
     std::cout << "[WARN] Process: " << reciever_name << " not in access list"
@@ -185,13 +186,22 @@ void SPEED::processFile_(const std::filesystem::path &file_path) {
     access_list_->removeProcessFromConnectedList(msg.header.sender);
     break;
   }
+  case MessageType::CON_REQ: {
+    std::cout << "[INFO]: Recieved CON_REQ from: " << msg.header.sender << "\n";
+    break;
   }
-  // if (msg.header.type == MessageType::EXIT_NOTIF) {
-
-  //   return;
-  // }
-  // PMessage mm = Message::destruct_message(msg);
-  // callback_(mm);
+  case MessageType::PING: {
+    std::cout << "[INFO]: Recieved PING from: " << msg.header.sender << "\n";
+    std::cout << "[INFO]: Now trying to send a pong message\n";
+    pong(msg.header.sender);
+    break;
+  }
+  case MessageType::PONG: {
+    PMessage mm = Message::destruct_message(msg);
+    callback_(mm);
+    break;
+  }
+  }
   std::filesystem::remove(file_path, ec);
   {
     std::lock_guard<std::mutex> lock(seen_mutex_);
@@ -275,7 +285,7 @@ void SPEED::pong_(const std::string &reciever_name) {
   Message pong_message = Message::construct_PONG(reciever_name);
   pong_message.header.seq_num = seq_number_;
   pong_message.header.sender = self_proc_name_;
-
+  std::cout << "\n[INFO]: Sending a PONG to: " << reciever_name << "\n";
   std::vector<uint64_t> k(key_.begin(), key_.end());
   EncryptionManager::Encrypt(pong_message, k);
   BinaryManager::writeBinary(pong_message, speed_dir_, seq_number_,

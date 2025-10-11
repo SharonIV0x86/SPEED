@@ -13,22 +13,24 @@ public:
   AccessRegistry(const std::filesystem::path &, const std::string &);
 
   void addProcessToList(const std::string &proc_name);
+  void incrementalBuildGlobalRegistry();
+  void removeAccessFile();
+
   bool removeProcessFromGlobalRegistry(const std::string &proc_name);
+  bool checkAccess(const std::string &proc_name) const;
   bool removeProcessFromAccessList(const std::string &proc_name);
   bool removeProcessFromConnectedList(const std::string &proc_name);
-  void removeAccessFile();
-  const std::filesystem::path &getAccessRegistryPath() const;
-  bool checkAccess(const std::string &proc_name) const;
   bool connect_to(const std::string &);
   bool checkGlobalRegistry(const std::string &proc_name) const;
   bool check_connection(const std::string &proc_name) const;
+
+  const std::filesystem::path &getAccessRegistryPath() const;
   const std::unordered_set<std::string> getGlobalRegistry() const;
   const std::unordered_set<std::string> getAccessList() const;
   const std::unordered_set<std::string> getConnectedList() const;
 
 private:
   void putAccessFile();
-  void incrementalBuildGlobalRegistry();
   void printRegistry() const;
   void try_connect_all();
   std::unordered_set<std::string> allowedProcesses_;

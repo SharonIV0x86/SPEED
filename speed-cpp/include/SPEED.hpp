@@ -39,12 +39,12 @@ public:
   SPEED(const std::string &, const ThreadMode &, const std::filesystem::path &);
   SPEED(const std::string &, const ThreadMode &);
   void printGlobalRegistry_() {
-    std::cout << "----------Global Rrgistry----------\n";
+    std::cout << "----------Global Registry----------\n";
     auto gr = access_list_->getGlobalRegistry();
     for (const auto &entry : gr) {
       std::cout << entry << "\n";
     }
-    std::cout << "----------Global Rrgistry----------\n";
+    std::cout << "----------Global Registry----------\n";
   }
 
   void printAccessList_() {
