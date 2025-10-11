@@ -165,6 +165,11 @@ void SPEED::processFile_(const std::filesystem::path &file_path) {
   Message msg = BinaryManager::readBinary(file_path);
   std::vector<uint64_t> k(key_.begin(), key_.end());
   EncryptionManager::Decrypt(msg, k);
+  if(!Message::validate_message(msg, self_proc_name_)){
+    std::cout << "[ERROR]: Invalid Message recieved! Not Processing.\n";
+    Message::print_message(msg);
+    return ;
+  }
   PMessage mm = Message::destruct_message(msg);
   callback_(mm);
   std::filesystem::remove(file_path, ec);
