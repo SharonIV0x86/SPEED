@@ -11,7 +11,7 @@ int main(){
     SPEED::SPEED spd("Riddhi", SPEED::ThreadMode::Multi);
     spd.setCallback(user_callback);
     spd.addProcess("Anirudh");
-    spd.setKeyFile("/home/jasper/Development/SPEED/speed-cpp/config.key");
+    spd.setKeyFile("/home/jasper/Development/SPEED/speed-cpp/config1.key");
     spd.start();
     while (true) {
         std::string s;
@@ -23,7 +23,7 @@ int main(){
             }else if(s == "--ping"){
                 spd.ping("Anirudh");
             }else if(s == "--pong"){
-                spd.pong("Riddhi");
+                spd.pong("Anirudh");
             }else if(s == "--kill"){
                 spd.kill();
             }

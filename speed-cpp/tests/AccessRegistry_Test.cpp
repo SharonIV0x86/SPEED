@@ -79,7 +79,7 @@ TEST_F(AccessRegistryTest, AddProcessFailsIfNotInGlobalRegistry) {
 TEST_F(AccessRegistryTest, RemoveProcessThatDoesNotExistLogsWarning) {
     AccessRegistry reg(tempDir, procName);
     testing::internal::CaptureStdout();
-    bool removed = reg.removeProcessFromList("NonExistentProc");
+    bool removed = reg.removeProcessFromAccessList("NonExistentProc");
     std::string out = testing::internal::GetCapturedStdout();
     EXPECT_FALSE(removed);
     EXPECT_NE(out.find("[WARN]: Process not in Allowed Registry"), std::string::npos);
@@ -121,7 +121,7 @@ TEST_F(AccessRegistryTest, ThreadSafetyForAddAndRemove) {
     };
     auto removeTask = [&]() {
         for (int i = 0; i < 10; ++i)
-            reg.removeProcessFromList("Concurrent");
+            reg.removeProcessFromAccessList("Concurrent");
     };
 
     std::thread t1(addTask), t2(removeTask);
