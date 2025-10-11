@@ -39,7 +39,16 @@ void AccessRegistry::incrementalBuildGlobalRegistry() {
     std::cerr << "[ERROR] Filesystem error: " << e.what() << "\n";
   }
 }
-
+const std::unordered_set<std::string>
+AccessRegistry::getGlobalRegistry() const {
+  return global_registry_;
+}
+const std::unordered_set<std::string> AccessRegistry::getAccessList() const {
+  return allowedProcesses_;
+}
+const std::unordered_set<std::string> AccessRegistry::getConnectedList() const {
+  return connected_list_;
+}
 void AccessRegistry::printRegistry() const {
   std::cout << "=== Global Registry ===\n";
   for (const auto &item : global_registry_) {
