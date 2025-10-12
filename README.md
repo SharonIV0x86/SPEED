@@ -44,7 +44,7 @@ int main() {
 ```
 
 
-### Protocol Documentation [here](SPEED_Protocol_doc.md)
+### Protocol Documentation [here](docs/SPEED_Protocol_doc.md)
 
 ## Why Choose SPEED?
 ### Ideal For:

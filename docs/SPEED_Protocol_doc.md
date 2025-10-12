@@ -89,3 +89,9 @@ Assuming the message is for `P1`, it next checks if the sender (`P2`) is in its 
 
 ### Step 7 (Final)
 `P1` similarly processes the message from `P3` in file `0023_3ehg-klfd-90ff-jk87.ospeed` with sequence number `23`.
+
+## Architecture Diagram
+![alt](assets/Untitled-2025-07-09-2224(32).png)
+
+## Flow Diagram
+![alt](assets/SPEED_ARCH.png)
