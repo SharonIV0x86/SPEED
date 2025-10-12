@@ -1,6 +1,6 @@
 # SPEED
 Secure Process-To-Process Encrypted Exchange and Delivery.
-
+A lightweight, file-based IPC library for secure local process communication. SPEED enables encrypted message passing between applications using a simple file system approach, making it ideal for embedded systems, restricted environments, and cross-platform tools.
 
 ## Work In Progress
 The current focus is the C++ binding (MVP). Java and additional language bindings are planned.

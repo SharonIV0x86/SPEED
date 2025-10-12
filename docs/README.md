@@ -1,4 +1,4 @@
-# IPC Protocol Documentation
+# SPEED IPC Protocol Documentation
 
 This document outlines the key flows in the IPC (Inter-Process Communication) protocol, including process startup, message sending, and message receiving. The descriptions assume specific example processes (e.g., `P1`, `P2`) for illustration purposes.
 
