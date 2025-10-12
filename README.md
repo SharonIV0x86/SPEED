@@ -65,7 +65,7 @@ int main() {
 ## Why SPEED Exists
 
 SPEED was born from a simple need: straightforward inter-process communication that works reliably across all platforms, even in restricted environments.
-SPEED was never meant to compete with high-performance IPC systems like sockets, pipes, or shared memory.
+SPEED was never meant to compete with high-performance IPC systems like sockets, pipes, or shared memory. It is more focused towards small use cases and projects.
 
 Sometimes, the right tool isn’t the fastest or most sophisticated. It’s the one that actually works for your situation. SPEED is that simple, reliable choice for developers who just need processes to communicate without the usual complexity.
 ### SPEED exists for:
