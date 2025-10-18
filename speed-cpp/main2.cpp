@@ -8,9 +8,9 @@ void user_callback(const SPEED::PMessage& msg){
 }
 
 int main(){
-    SPEED::SPEED spd("Riddhi", SPEED::ThreadMode::Multi);
+    SPEED::SPEED spd("Proc_2", SPEED::ThreadMode::Multi);
     spd.setCallback(user_callback);
-    spd.addProcess("Anirudh");
+    spd.addProcess("Proc_1");
     spd.setKeyFile("/home/jasper/Development/SPEED/speed-cpp/config.key");
     spd.start();
     while (true) {
@@ -21,9 +21,9 @@ int main(){
             if(s == "--exit"){
                 break;
             }else if(s == "--ping"){
-                spd.ping("Anirudh");
+                spd.ping("Proc_1");
             }else if(s == "--pong"){
-                spd.pong("Anirudh");
+                spd.pong("Proc_1");
             }else if(s == "--kill"){
                 spd.kill();
             }
@@ -37,7 +37,7 @@ int main(){
                 spd.printConnectedList_();
             }
             else{
-                spd.sendMessage(s, "Anirudh");
+                spd.sendMessage(s, "Proc_1");
             }
         }
     }

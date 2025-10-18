@@ -79,19 +79,9 @@ void AccessRegistry::addProcessToList(const std::string &proc_name) {
   // std::cout << "Inside addProcessToList\n";
   std::lock_guard<std::mutex> lock(mtx_);
 
-  // if (checkAccess(proc_name)) {
-  //   std::cout << "[ERROR]: Process Already Exists in Access Registry\n";
-  //   return;
-  // }
-
-  if (!checkGlobalRegistry(proc_name)) {
-    std::cout << "[INFO]: Process not in global registry, rebuilding...\n";
-    incrementalBuildGlobalRegistry();
-    if (!checkGlobalRegistry(proc_name)) {
-      std::cout
-          << "[ERROR]: Process cannot be added, process not arrived yet!\n";
-      return;
-    }
+  if (checkAccess(proc_name)) {
+    std::cout << "[ERROR]: Process Already Exists in Access Registry\n";
+    return;
   }
   // Safe add
   allowedProcesses_.insert(proc_name);
@@ -103,6 +93,13 @@ bool AccessRegistry::connect_to(const std::string &proc_name) {
   }
   connected_list_.insert(proc_name);
   return true;
+}
+void AccessRegistry::syncAccessRegistry() {
+  for (const auto &entry : global_registry_) {
+    if (!checkAccess(entry)) {
+      allowedProcesses_.erase(entry);
+    }
+  }
 }
 bool AccessRegistry::removeProcessFromGlobalRegistry(
     const std::string &proc_name) {

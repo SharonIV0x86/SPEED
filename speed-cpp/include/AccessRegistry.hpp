@@ -15,6 +15,7 @@ public:
   void addProcessToList(const std::string &proc_name);
   void incrementalBuildGlobalRegistry();
   void removeAccessFile();
+  void syncAccessRegistry();
 
   bool removeProcessFromGlobalRegistry(const std::string &proc_name);
   bool checkAccess(const std::string &proc_name) const;

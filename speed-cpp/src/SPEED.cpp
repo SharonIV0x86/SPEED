@@ -61,12 +61,16 @@ void SPEED::setCallback(std::function<void(const PMessage &)> cb) {
 bool SPEED::addProcess(const std::string &proc_name) {
   std::lock_guard<std::mutex> lock(access_list_mutex_);
 
-  if (access_list_->checkAccess(proc_name)) {
+  if (!access_list_->checkAccess(proc_name)) {
+    std::cout << "[ERROR]: Process Already Exists in Access Registry\n";
     return false;
   }
-
-  if (access_list_ && !access_list_->check_connection(proc_name))
-    access_list_->addProcessToList(proc_name);
+  if (access_list_) {
+    if (!access_list_->check_connection(proc_name)) {
+      std::cout << "[SPECIAL] Running\n";
+      access_list_->addProcessToList(proc_name);
+    }
+  }
 
   return true;
 }
