@@ -95,3 +95,78 @@ Assuming the message is for `P1`, it next checks if the sender (`P2`) is in its 
 
 ## Flow Diagram
 ![alt](assets/SPEED_ARCH.png)
+
+## Data Structures: Overview and Working
+This section explains how the three core data structures in the access control system interact and work together.
+For better understanding, the following abbreviations will be used throughout:
+- **Global Registry: GR**
+- **Access List / Allowed List: AL**
+- **Connected List: CL**
+
+### Global Registry (GR)
+The Global Registry acts as a synchronized in-memory representation (or snapshot) of the ``access_registry`` folder.
+While the access_registry exists physically as a folder, the Global Registry is its programmatic equivalent - both represent the same logical structure.
+
+Each process maintains its own **GR**, which stores the list of all currently active processes within a session. This allows every process to be aware of other potential peers it could communicate with in the future.
+
+Whenever a process joins or leaves the session, all existing processes automatically update their GRs to remain in sync with the ``access_registry``.
+
+In essence, the **GR** provides a live view of the session’s process ecosystem.
+
+### Access List (AL)
+The **Access List** (AL), also known as the **Allowed List**, sits one level below the Global Registry.
+It represents the subset of processes that the current process is allowed to communicate with - defined explicitly by the developer.
+
+Unlike the **GR**, which lists all available processes, the **AL** only contains those that have been granted permission for communication. It does not indicate active connections, only potential ones which could become active connections in future.
+
+The **AL** is defined by the developer, like a developer can use the API function to add a process for communication.
+
+For example:
+```cpp
+ipc.addProcess("proc_2");
+ipc.addProcess("proc_3");
+```
+Here, the process declares that it is open to communicating with ``proc_2`` and ``proc_3`` whenever they initiate a connection.
+
+If a process listed in the **AL** sends a **CON_REQ** (connection request), it can be safely accepted since prior permission exists.
+### Connected List (CL)
+The **Connected List (CL)** represents the lowest layer of the hierarchy - it contains the processes that are currently connected and actively exchanging messages.
+
+In other words, a process appears in the CL only after a successful handshake sequence:
+- You send a ``CON_REQ``,
+- The peer accepts with a ``CON_ACPT``,
+- And both establish a communication channel.
+
+Thus, the **CL** provides the real-time state of all active peer connections within the system.
+
+
+## Relationships Between GR, AL, and CL
+
+The relationship among the three lists is hierarchical but not strictly inclusive:
+
+- Every **Connected List (CL)** entry must exist in the **Access List (AL)** (you can only connect to allowed processes).
+
+- Every **Access List (AL)** entry must exist in the **Global Registry (GR)** (you can only allow processes that actually exist).
+- However:
+    - Not every **GR** process is in the **AL** (you may not allow all processes).
+    - Not every **AL** process is in the **CL** (you may not be connected to all allowed ones).
+
+In short:
+```
+All CL ⊆ AL ⊆ GR
+but
+GR ≠ AL ≠ CL
+```
+
+### An Analogy
+To visualize the relationship between these three lists:
+
+- **Global Registry (GR)**: Like your entire contact list of 10 friends.
+You know they exist and can potentially reach them.
+
+- **Access List (AL)**: Out of those 10, you have 4 friends’ numbers saved - you can call them if you choose.
+
+- **Connected List (CL)**: From those 4, you are currently on a group call with 2 - representing live communication channels. And in future you can also add the other 2 to the group call.
+
+### Visual Diagram Description
+![alt](assets/DS_Diag.png)
