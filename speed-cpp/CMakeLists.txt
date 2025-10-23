@@ -29,6 +29,7 @@ link_directories(${SODIUM_LIBRARY_DIRS})
 add_executable(AccessRegistry_test
     tests/AccessRegistry_Test.cpp   
     tests/BinaryManager_Test.cpp   
+    tests/per_sender_fifo_mock_Test.cpp
     src/AccessRegistry.cpp
     src/Utils.cpp
 )

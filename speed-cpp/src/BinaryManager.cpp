@@ -9,10 +9,15 @@ bool BinaryManager::writeBinary(const Message &msg,
                                 const std::string &proc_name) {
   const long long seq = seq_number.load();
   const std::string uuid = Utils::generateUUID();
+  const std::string timestamp = Utils::getCurrentTimestamp();
   std::filesystem::path before_path =
-      path / proc_name / (std::to_string(seq) + "_" + uuid + ".ispeed");
+      path / proc_name /
+      (timestamp + "_" + proc_name + "_" + std::to_string(seq_number) + "_" +
+       uuid + ".ispeed");
   std::filesystem::path after_path =
-      path / proc_name / (std::to_string(seq) + "_" + uuid + ".ospeed");
+      path / proc_name /
+      (timestamp + "_" + proc_name + "_" + std::to_string(seq_number) + "_" +
+       uuid + ".ospeed");
 
   std::ofstream out(before_path, std::ios::binary);
   if (!out)

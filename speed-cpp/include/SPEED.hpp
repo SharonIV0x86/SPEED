@@ -68,6 +68,11 @@ public:
   bool setKeyFile(const std::filesystem::path &);
   void setCallback(std::function<void(const PMessage &)> cb);
   ~SPEED();
+  struct ParsedFileInfo {
+    std::string proc_name;
+    long long seq;
+    std::filesystem::path path;
+  };
 
 private:
   std::string self_proc_name_;
@@ -99,19 +104,27 @@ private:
   void watcherSingleThread_(); // blocking call for single-thread mode
   void watcherMultiThread_();  // non-blocking call for multi-thread mode
   void processFile_(const std::filesystem::path &file_path);
-  std::optional<long long>
-  extractSeqFromFilename_(const std::string &filename) const;
+  std::optional<ParsedFileInfo>
+  extractFileInfoFromFilename_(const std::filesystem::path &path) const;
+  void runWatcherLoop_(); // Core FIFO logic
+  // std::optional<long long>
+  // extractSeqFromFilename_(const std::string &filename) const;
   void ping_(const std::string &);
   void pong_(const std::string &);
   using FileCandidate = std::pair<long long, std::filesystem::path>;
-  struct CompareSeq {
-    bool operator()(const FileCandidate &a, const FileCandidate &b) const {
-      return a.first > b.first;
-    }
-  };
-  std::priority_queue<FileCandidate, std::vector<FileCandidate>, CompareSeq>
-      heap_;
+  // struct CompareSeq {
+  //   bool operator()(const FileCandidate &a, const FileCandidate &b) const {
+  //     return a.first > b.first;
+  //   }
+  // };
+  // std::priority_queue<FileCandidate, std::vector<FileCandidate>, CompareSeq>
+  //     heap_;
   std::unordered_set<std::string> seen_;
+
+  std::unordered_map<std::string, long long> next_expected_seq_;
+  std::unordered_map<std::string, std::map<long long, std::filesystem::path>>
+      sender_buffers_;
+  std::mutex fifo_mutex_;
 };
 
 } // namespace SPEED

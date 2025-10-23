@@ -61,10 +61,6 @@ void SPEED::setCallback(std::function<void(const PMessage &)> cb) {
 bool SPEED::addProcess(const std::string &proc_name) {
   std::lock_guard<std::mutex> lock(access_list_mutex_);
 
-  if (!access_list_->checkAccess(proc_name)) {
-    std::cout << "[ERROR]: Process Already Exists in Access Registry\n";
-    return false;
-  }
   if (access_list_) {
     if (!access_list_->check_connection(proc_name)) {
       std::cout << "[SPECIAL] Running\n";
@@ -151,20 +147,6 @@ void SPEED::sendMessage(const std::string &msg,
   seq_number_.fetch_add(1, std::memory_order_relaxed);
 }
 
-std::optional<long long>
-SPEED::extractSeqFromFilename_(const std::string &filename) const {
-  static const std::regex re("^(\\d+)_.*\\.ospeed$");
-  std::smatch m;
-  if (std::regex_search(filename, m, re) && m.size() >= 2) {
-    try {
-      return std::stoll(m[1].str());
-    } catch (...) {
-      return std::nullopt;
-    }
-  }
-  return std::nullopt;
-}
-
 void SPEED::processFile_(const std::filesystem::path &file_path) {
   std::error_code ec;
   std::lock_guard<std::mutex> lock(callback_mutex_);
@@ -213,66 +195,74 @@ void SPEED::processFile_(const std::filesystem::path &file_path) {
   }
 }
 void SPEED::watcherSingleThread_() {
-  std::lock_guard<std::mutex> lock(single_mtx_);
-  // std::cout << "[INFO]: Starting Single-Thread Blocking Watcher\n";
-
-  while (!watcher_should_exit_.load()) {
-    for (auto &entry : std::filesystem::directory_iterator(self_speed_dir_)) {
-      if (!entry.is_regular_file())
-        continue;
-
-      std::string fname = entry.path().filename().string();
-
-      if (seen_.count(fname))
-        continue;
-
-      auto seq = extractSeqFromFilename_(fname);
-      if (seq) {
-        heap_.emplace(*seq, entry.path());
-        seen_.insert(fname);
-      }
-    }
-    if (!heap_.empty()) {
-      auto candidate = heap_.top();
-      heap_.pop();
-      seen_.erase(candidate.second.filename().string());
-
-      processFile_(candidate.second);
-      continue;
-    }
-
-    // Nothing to do → sleep
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
-  }
+  runWatcherLoop_(); // Blocking call
 }
+
 void SPEED::watcherMultiThread_() {
-  std::lock_guard<std::mutex> lock(multi_mutex_);
-  // std::cout << "[INFO]: Starting Multi-Thread Non-Blocking Watcher\n";
+  runWatcherLoop_(); // Non-blocking because start() already spawns thread
+}
+
+std::optional<SPEED::ParsedFileInfo>
+SPEED::extractFileInfoFromFilename_(const std::filesystem::path &path) const {
+  static const std::regex re(
+      R"((\d+)_([A-Za-z0-9_]+)_(\d+)_([A-Za-z0-9-]+)\.ospeed)");
+  std::smatch m;
+  std::string filename = path.filename().string();
+  if (std::regex_match(filename, m, re)) {
+    try {
+      return ParsedFileInfo{m[2].str(),             // proc_name
+                            std::stoll(m[3].str()), // seq
+                            path};
+    } catch (...) {
+      return std::nullopt;
+    }
+  }
+  return std::nullopt;
+}
+void SPEED::runWatcherLoop_() {
   while (!watcher_should_exit_.load()) {
+    // Scan all new files
     for (auto &entry : std::filesystem::directory_iterator(self_speed_dir_)) {
       if (!entry.is_regular_file())
         continue;
 
-      auto fname = entry.path().filename().string();
-      if (seen_.count(fname))
+      auto info = extractFileInfoFromFilename_(entry.path());
+      if (!info.has_value())
         continue;
 
-      auto seq = extractSeqFromFilename_(fname);
-      if (seq) {
-        heap_.emplace(*seq, entry.path());
+      const std::string fname = entry.path().filename().string();
+
+      {
+        std::lock_guard<std::mutex> seen_lock(seen_mutex_);
+        if (seen_.count(fname))
+          continue;
         seen_.insert(fname);
       }
-    }
-    if (!heap_.empty()) {
-      auto [seq, path] = heap_.top();
-      heap_.pop();
 
-      processFile_(path);
-      continue;
+      std::lock_guard<std::mutex> fifo_lock(fifo_mutex_);
+      sender_buffers_[info->proc_name][info->seq] = entry.path();
+      if (!next_expected_seq_.count(info->proc_name))
+        next_expected_seq_[info->proc_name] = 0;
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
+    // Try to process one file per sender if ready
+    {
+      std::lock_guard<std::mutex> fifo_lock(fifo_mutex_);
+      for (auto &[sender, buffer] : sender_buffers_) {
+        auto expected_seq = next_expected_seq_[sender];
+        auto it = buffer.find(expected_seq);
+        if (it != buffer.end()) {
+          processFile_(it->second);
+          buffer.erase(it);
+          next_expected_seq_[sender] = expected_seq + 1;
+        }
+      }
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }
 }
+
 void SPEED::ping(const std::string &reciever_name) { ping_(reciever_name); }
 void SPEED::pong(const std::string &reciever_name) { pong_(reciever_name); }
 void SPEED::ping_(const std::string &reciever_name) {
