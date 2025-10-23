@@ -77,3 +77,35 @@ Sometimes, the right tool isn’t the fastest or most sophisticated. It’s the 
 - A production-grade IPC framework
 - A high-throughput or real-time message bus
 
+# SPEED RFI (Remote Function Invocation)
+SPEED RFI enables lightweight, cross-process function calls between connected processes using the SPEED IPC layer.
+For example, if Process P1 and Process P2 are connected through SPEED, then P1 can remotely invoke functions registered by P2.
+
+```cpp
+void add(const std::vector<std::string>& args) {
+    int a = std::stoi(args[0]);
+    int b = std::stoi(args[1]);
+    std::cout << "Sum: " << (a + b) << "\n";
+}
+
+ipc_P2.registerMethod("add", add);
+```
+A process can register functions that can be invoked remotely using the registerMethod() API. Only registered functions are eligible for remote invocation. Now **P1** wants to invoke this method in **P2**.
+
+To invoke a registered function from another process, use the ``invokeMethod()`` API:
+```cpp
+
+ipc_P1.invokeMethod("add", "P1", {"10", "10"});
+```
+| Parameter      | Type                       | Description                                           |
+| -------------- | -------------------------- | ----------------------------------------------------- |
+| `method_name`  | `std::string`              | Name of the function to invoke.                       |
+| `process_name` | `std::string`              | Target process name where the function is registered. |
+| `args`         | `std::vector<std::string>` | List of arguments to pass to the remote function.     |
+
+### Notes and Conventions
+- All arguments must be passed as strings.
+- The receiving function is responsible for casting and parsing parameters into the required types.
+- Only registered functions can be invoked remotely.
+- If the target process or function name does not exist, SPEED will safely log an error.
+- RFI is fully asynchronous - invocation requests are queued and delivered through SPEED’s internal message-passing system.
