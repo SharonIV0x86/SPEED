@@ -286,4 +286,16 @@ void SPEED::pong_(const std::string &reciever_name) {
                              reciever_name);
   seq_number_.fetch_add(1, std::memory_order_relaxed);
 }
+void SPEED::registerMethod(const std::string &name, RemoteFunction func) {
+  function_registry_[name] = std::move(func);
+}
+void SPEED::invokeMethod(const std::string &name,
+                         const std::vector<std::string> &args) {
+  if (function_registry_.count(name)) {
+    function_registry_[name](args);
+  } else {
+    std::cerr << "[ERROR] Method '" << name << "' not found.\n";
+  }
+}
+
 } // namespace SPEED

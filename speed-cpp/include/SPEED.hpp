@@ -28,11 +28,24 @@ enum class ThreadMode { Single = 0, Multi = 1 };
 
 class SPEED {
 public:
+  using RemoteFunction = std::function<void(const std::vector<std::string> &)>;
+
   void sendMessage(const std::string &, const std::string &);
   void kill();
   void stop();
   void resume();
   void start();
+  void registerMethod(const std::string &, RemoteFunction);
+  template <typename T>
+  void registerMethod(const std::string &name,
+                      void (T::*method)(const std::vector<std::string> &),
+                      T *instance) {
+    function_registry_[name] = [instance,
+                                method](const std::vector<std::string> &args) {
+      (instance->*method)(args);
+    };
+  }
+  void invokeMethod(const std::string &, const std::vector<std::string> &);
   bool addProcess(const std::string &);
   void ping(const std::string &);
   void pong(const std::string &);
@@ -68,19 +81,20 @@ public:
   bool setKeyFile(const std::filesystem::path &);
   void setCallback(std::function<void(const PMessage &)> cb);
   ~SPEED();
+
+private:
   struct ParsedFileInfo {
     std::string proc_name;
     long long seq;
     std::filesystem::path path;
   };
 
-private:
-  std::string self_proc_name_;
   ThreadMode tmode_;
   std::filesystem::path speed_dir_;
   std::filesystem::path self_speed_dir_;
 
   std::string key_;
+  std::string self_proc_name_;
   std::filesystem::path key_path_;
   std::atomic<long long> seq_number_{0};
 
@@ -95,36 +109,31 @@ private:
   std::mutex single_mtx_;
   std::mutex multi_mutex_;
   std::mutex write_mutex_;
-  std::thread watcher_thread_;
+  std::mutex rfi_mutex_;
+  std::mutex watcher_mutex_;
+  std::mutex fifo_mutex_;
 
+  std::thread watcher_thread_;
   std::atomic<bool> watcher_running_{false};
   std::atomic<bool> watcher_should_exit_{false};
-  std::mutex watcher_mutex_;
 
   void watcherSingleThread_(); // blocking call for single-thread mode
   void watcherMultiThread_();  // non-blocking call for multi-thread mode
   void processFile_(const std::filesystem::path &file_path);
-  std::optional<ParsedFileInfo>
-  extractFileInfoFromFilename_(const std::filesystem::path &path) const;
   void runWatcherLoop_(); // Core FIFO logic
-  // std::optional<long long>
-  // extractSeqFromFilename_(const std::string &filename) const;
   void ping_(const std::string &);
   void pong_(const std::string &);
-  using FileCandidate = std::pair<long long, std::filesystem::path>;
-  // struct CompareSeq {
-  //   bool operator()(const FileCandidate &a, const FileCandidate &b) const {
-  //     return a.first > b.first;
-  //   }
-  // };
-  // std::priority_queue<FileCandidate, std::vector<FileCandidate>, CompareSeq>
-  //     heap_;
-  std::unordered_set<std::string> seen_;
 
+  std::optional<ParsedFileInfo>
+  extractFileInfoFromFilename_(const std::filesystem::path &path) const;
+
+  using FileCandidate = std::pair<long long, std::filesystem::path>;
+
+  std::unordered_set<std::string> seen_;
+  std::unordered_map<std::string, RemoteFunction> function_registry_;
   std::unordered_map<std::string, long long> next_expected_seq_;
   std::unordered_map<std::string, std::map<long long, std::filesystem::path>>
       sender_buffers_;
-  std::mutex fifo_mutex_;
 };
 
 } // namespace SPEED
