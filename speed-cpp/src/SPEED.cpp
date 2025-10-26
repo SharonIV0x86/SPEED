@@ -102,6 +102,7 @@ void SPEED::kill() {
   watcher_should_exit_.store(true);
   watcher_running_.store(false);
   access_list_->removeAccessFile();
+  stopAllExecutors();
   const std::unordered_set<std::string> acl = access_list_->getAccessList();
   std::vector<uint64_t> k(key_.begin(), key_.end());
   for (const std::string &entry : acl) {
@@ -132,7 +133,10 @@ void SPEED::sendMessage(const std::string &msg,
               << " not in connection list" << "\n";
   }
   Message message = Message::construct_MSG(msg);
-  message.header.seq_num = seq_number_;
+
+  // load numeric seq value from atomic
+  message.header.seq_num = seq_number_.load(std::memory_order_relaxed);
+
   message.header.sender = self_proc_name_;
   message.header.reciever = reciever_name;
   std::vector<uint64_t> k(key_.begin(), key_.end());
@@ -140,60 +144,176 @@ void SPEED::sendMessage(const std::string &msg,
                                       reciever_name)) {
     std::cout << "[ERROR] Message validation failed! Before." << "\n";
     Message::print_message(message);
+    return;
   }
   EncryptionManager::Encrypt(message, k);
   BinaryManager::writeBinary(message, speed_dir_, seq_number_, reciever_name);
 
+  // advance the sender's local sequence number
   seq_number_.fetch_add(1, std::memory_order_relaxed);
+}
+void SPEED::runWatcherLoop_() {
+  while (!watcher_should_exit_.load()) {
+    // Scan all new files in our inbox directory
+    for (auto &entry : std::filesystem::directory_iterator(self_speed_dir_)) {
+      if (!entry.is_regular_file())
+        continue;
+
+      auto info = extractFileInfoFromFilename_(entry.path());
+      if (!info.has_value())
+        continue;
+
+      const std::string fname = entry.path().filename().string();
+
+      // Deduplicate so we don't enqueue the same file twice
+      {
+        std::lock_guard<std::mutex> seen_lock(seen_mutex_);
+        if (seen_.count(fname))
+          continue;
+        seen_.insert(fname);
+      }
+
+      // Build a task and immediately hand it off to the per-receiver executor.
+      // This implements "per-thread-per-receiver": each remote (proc_name)
+      // gets its own worker that processes that remote's files sequentially.
+      Task t;
+      t.path = entry.path();
+      t.seq = info->seq; // optional metadata
+
+      enqueueTaskForSender(info->proc_name, std::move(t));
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
 }
 
 void SPEED::processFile_(const std::filesystem::path &file_path) {
-  std::error_code ec;
-  std::lock_guard<std::mutex> lock(callback_mutex_);
-  Message msg = BinaryManager::readBinary(file_path);
-  std::vector<uint64_t> k(key_.begin(), key_.end());
-  EncryptionManager::Decrypt(msg, k);
-  if (!Message::validate_message_recieved(msg, self_proc_name_)) {
-    std::cout << "[ERROR]: Invalid Message recieved! Not Processing.\n";
-    Message::print_message(msg);
+  Message msg;
+  try {
+    msg = BinaryManager::readBinary(file_path);
+  } catch (const std::exception &e) {
+    std::cerr << "[SPEED] Failed to read file " << file_path << ": " << e.what()
+              << "\n";
+    std::lock_guard<std::mutex> lk(seen_mutex_);
+    seen_.erase(file_path.filename().string());
     return;
   }
+
+  std::vector<uint64_t> k(key_.begin(), key_.end());
+  try {
+    EncryptionManager::Decrypt(msg, k);
+  } catch (const std::exception &e) {
+    std::cerr << "[SPEED] Decrypt failed for " << file_path << ": " << e.what()
+              << "\n";
+    std::lock_guard<std::mutex> lk(seen_mutex_);
+    seen_.erase(file_path.filename().string());
+    return;
+  }
+
+  if (!Message::validate_message_recieved(msg, self_proc_name_)) {
+    std::cerr << "[ERROR]: Invalid Message received! Not Processing.\n";
+    Message::print_message(msg);
+    std::lock_guard<std::mutex> lk(seen_mutex_);
+    seen_.erase(file_path.filename().string());
+    return;
+  }
+
+  // Handle message types
   switch (msg.header.type) {
   case MessageType::MSG: {
     PMessage mm = Message::destruct_message(msg);
+    std::lock_guard<std::mutex> lock(callback_mutex_);
     callback_(mm);
     break;
   }
   case MessageType::EXIT_NOTIF: {
-    const std::string s(msg.payload.begin(), msg.payload.end());
-    std::cout << "[DEBUG]: Recieved and EXIT_NOTIF for: " << s << "\n";
+    std::lock_guard<std::mutex> lk(access_list_mutex_);
     access_list_->removeProcessFromGlobalRegistry(msg.header.sender);
     access_list_->removeProcessFromAccessList(msg.header.sender);
     access_list_->removeProcessFromConnectedList(msg.header.sender);
+    std::cout << "[DEBUG]: Received EXIT_NOTIF for: " << msg.header.sender
+              << "\n";
     break;
   }
-  case MessageType::CON_REQ: {
-    std::cout << "[INFO]: Recieved CON_REQ from: " << msg.header.sender << "\n";
-    break;
-  }
-  case MessageType::PING: {
-    std::cout << "[INFO]: Recieved PING from: " << msg.header.sender << "\n";
-    std::cout << "[INFO]: Now trying to send a pong message\n";
+  case MessageType::PING:
     pong(msg.header.sender);
     break;
-  }
   case MessageType::PONG: {
     PMessage mm = Message::destruct_message(msg);
+    std::lock_guard<std::mutex> lock(callback_mutex_);
     callback_(mm);
     break;
   }
+  default:
+    break;
   }
+
+  // Always remove file safely
+  std::error_code ec;
   std::filesystem::remove(file_path, ec);
+  if (ec)
+    std::cerr << "[WARN]: Failed to remove file: " << file_path << " -> "
+              << ec.message() << "\n";
+
+  std::lock_guard<std::mutex> lock(seen_mutex_);
+  seen_.erase(file_path.filename().string());
+}
+
+void SPEED::enqueueTaskForSender(const std::string &sender, Task task) {
+  std::unique_lock<std::mutex> maplock(executors_mtx_);
+  auto &ptr = executors_[sender];
+  if (!ptr)
+    ptr = std::make_unique<PerSenderExecutor>();
+  PerSenderExecutor *pe = ptr.get();
+  maplock.unlock();
+
   {
-    std::lock_guard<std::mutex> lock(seen_mutex_);
-    seen_.erase(file_path.filename().string());
+    std::unique_lock<std::mutex> lk(pe->m);
+    pe->q.push_back(std::move(task));
+    pe->cv.notify_one();
+  }
+
+  bool need_start = false;
+  if (!pe->running.load(std::memory_order_acquire)) {
+    bool expected = false;
+    if (pe->running.compare_exchange_strong(expected, true))
+      need_start = true;
+  }
+
+  if (need_start) {
+    pe->stop_flag.store(false);
+    pe->worker = std::make_unique<std::thread>([this, pe, sender]() {
+      while (!pe->stop_flag.load()) {
+        Task t;
+        {
+          std::unique_lock<std::mutex> lk(pe->m);
+          pe->cv.wait_for(lk, pe->idle_timeout, [&] {
+            return !pe->q.empty() || pe->stop_flag.load();
+          });
+
+          if (pe->stop_flag.load())
+            break;
+
+          if (pe->q.empty())
+            continue; // nothing to process, go back to wait
+          t = std::move(pe->q.front());
+          pe->q.pop_front();
+        }
+
+        try {
+          this->processFile_(t.path);
+        } catch (const std::exception &e) {
+          std::cerr << "[SPEED] Worker error for sender " << sender << ": "
+                    << e.what() << "\n";
+        }
+      }
+      pe->running.store(false);
+    });
+
+    pe->worker->detach();
   }
 }
+
 void SPEED::watcherSingleThread_() {
   runWatcherLoop_(); // Blocking call
 }
@@ -218,49 +338,6 @@ SPEED::extractFileInfoFromFilename_(const std::filesystem::path &path) const {
     }
   }
   return std::nullopt;
-}
-void SPEED::runWatcherLoop_() {
-  while (!watcher_should_exit_.load()) {
-    // Scan all new files
-    for (auto &entry : std::filesystem::directory_iterator(self_speed_dir_)) {
-      if (!entry.is_regular_file())
-        continue;
-
-      auto info = extractFileInfoFromFilename_(entry.path());
-      if (!info.has_value())
-        continue;
-
-      const std::string fname = entry.path().filename().string();
-
-      {
-        std::lock_guard<std::mutex> seen_lock(seen_mutex_);
-        if (seen_.count(fname))
-          continue;
-        seen_.insert(fname);
-      }
-
-      std::lock_guard<std::mutex> fifo_lock(fifo_mutex_);
-      sender_buffers_[info->proc_name][info->seq] = entry.path();
-      if (!next_expected_seq_.count(info->proc_name))
-        next_expected_seq_[info->proc_name] = 0;
-    }
-
-    // Try to process one file per sender if ready
-    {
-      std::lock_guard<std::mutex> fifo_lock(fifo_mutex_);
-      for (auto &[sender, buffer] : sender_buffers_) {
-        auto expected_seq = next_expected_seq_[sender];
-        auto it = buffer.find(expected_seq);
-        if (it != buffer.end()) {
-          processFile_(it->second);
-          buffer.erase(it);
-          next_expected_seq_[sender] = expected_seq + 1;
-        }
-      }
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-  }
 }
 
 void SPEED::ping(const std::string &reciever_name) { ping_(reciever_name); }
@@ -296,6 +373,15 @@ void SPEED::invokeMethod(const std::string &name,
   } else {
     std::cerr << "[ERROR] Method '" << name << "' not found.\n";
   }
+}
+
+void SPEED::stopAllExecutors() {
+  std::lock_guard<std::mutex> maplock(executors_mtx_);
+  for (auto &[sender, exec] : executors_) {
+    exec->stop_flag.store(true);
+    exec->cv.notify_all();
+  }
+  executors_.clear();
 }
 
 } // namespace SPEED
