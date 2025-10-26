@@ -30,12 +30,15 @@ public:
   std::string sender_name;
   std::string message;
   uint64_t timestamp;
+  uint64_t sequence_num;
   PMessage(const std::string &sender_name, const std::string &message,
-           const uint64_t &timestamp) {
+           const uint64_t &timestamp, const uint64_t &sequence_num) {
     this->sender_name = sender_name;
     this->message = message;
     this->timestamp = timestamp;
+    this->sequence_num = sequence_num;
   }
+  PMessage() {};
 };
 
 struct Message {
@@ -143,7 +146,8 @@ struct Message {
   static PMessage destruct_message(const Message &message) {
     const std::string m =
         std::string(message.payload.begin(), message.payload.end());
-    PMessage message_(message.header.sender, m, message.header.timestamp);
+    PMessage message_(message.header.sender, m, message.header.timestamp,
+                      message.header.seq_num);
     return message_;
   }
   static bool validate_message_sent(const Message &message,
@@ -159,6 +163,8 @@ struct Message {
     }
     if (message.header.reciever != reciever_name) {
       std::cout << "[ERROR]: Mismatch Reciever\n";
+      std::cout << "[RECIEVER MISMATCH]: EXPECTED: " << message.header.reciever
+                << " GOT: " << reciever_name << "\n";
       return false;
     }
     return true;
@@ -169,10 +175,10 @@ struct Message {
       std::cout << "[ERROR]: Mismatch version\n";
       return false;
     }
-    if (message.header.reciever != self_proc_name) {
-      std::cout << "[ERROR]: Mismatch reciever\n";
-      return false;
-    }
+    // if (message.header.reciever != self_proc_name) {
+    //   std::cout << "[ERROR]: Mismatch reciever\n";
+    //   return false;
+    // }
     return true;
   }
   static void print_message(const Message &message) {

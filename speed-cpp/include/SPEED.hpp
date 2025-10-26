@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <condition_variable>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -88,6 +89,23 @@ private:
     long long seq;
     std::filesystem::path path;
   };
+  struct Task {
+    PMessage msg;
+    std::filesystem::path path;
+    long long seq;
+    Task() {};
+  };
+
+  struct PerSenderExecutor {
+    std::deque<Task> q;
+    std::mutex m;
+    std::condition_variable cv;
+    std::unique_ptr<std::thread> worker;
+    std::atomic<bool> running{false};
+    std::atomic<bool> stop_flag{false};
+    size_t max_q = 256;
+    std::chrono::milliseconds idle_timeout{5000};
+  };
 
   ThreadMode tmode_;
   std::filesystem::path speed_dir_;
@@ -112,6 +130,7 @@ private:
   std::mutex rfi_mutex_;
   std::mutex watcher_mutex_;
   std::mutex fifo_mutex_;
+  std::mutex executors_mtx_;
 
   std::thread watcher_thread_;
   std::atomic<bool> watcher_running_{false};
@@ -121,6 +140,8 @@ private:
   void watcherMultiThread_();  // non-blocking call for multi-thread mode
   void processFile_(const std::filesystem::path &file_path);
   void runWatcherLoop_(); // Core FIFO logic
+  void enqueueTaskForSender(const std::string &, Task);
+  void stopAllExecutors();
   void ping_(const std::string &);
   void pong_(const std::string &);
 
@@ -132,6 +153,8 @@ private:
   std::unordered_set<std::string> seen_;
   std::unordered_map<std::string, RemoteFunction> function_registry_;
   std::unordered_map<std::string, long long> next_expected_seq_;
+  std::unordered_map<std::string, std::unique_ptr<PerSenderExecutor>>
+      executors_;
   std::unordered_map<std::string, std::map<long long, std::filesystem::path>>
       sender_buffers_;
 };
