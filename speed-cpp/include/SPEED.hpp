@@ -5,6 +5,7 @@
 #include "Constants.hpp"
 #include "EncryptionManager.hpp"
 #include "KeyManager.hpp"
+#include "MessageUtils.hpp"
 #include "Utils.hpp"
 
 #include <algorithm>
@@ -131,7 +132,7 @@ private:
   std::mutex watcher_mutex_;
   std::mutex fifo_mutex_;
   std::mutex executors_mtx_;
-
+  std::mutex con_res_buffer_mtx_;
   std::thread watcher_thread_;
   std::atomic<bool> watcher_running_{false};
   std::atomic<bool> watcher_should_exit_{false};
@@ -151,6 +152,7 @@ private:
   using FileCandidate = std::pair<long long, std::filesystem::path>;
 
   std::unordered_set<std::string> seen_;
+  std::unordered_set<std::string> con_res_buffer;
   std::unordered_map<std::string, RemoteFunction> function_registry_;
   std::unordered_map<std::string, long long> next_expected_seq_;
   std::unordered_map<std::string, std::unique_ptr<PerSenderExecutor>>

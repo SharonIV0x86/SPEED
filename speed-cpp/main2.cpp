@@ -10,8 +10,8 @@ void user_callback(const SPEED::PMessage& msg){
 int main(){
     SPEED::SPEED spd("Proc_2", SPEED::ThreadMode::Multi);
     spd.setCallback(user_callback);
-    spd.addProcess("Proc_1");
     spd.setKeyFile("/home/jasper/Development/SPEED/speed-cpp/config.key");
+    spd.addProcess("Proc_1");
     spd.start();
     while (true) {
         std::string s;
