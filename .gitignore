@@ -4,4 +4,6 @@
 *.bin
 speed-cpp/app
 speed-cpp/build
-
+/venv
+__pycache__
+speed_ipc.egg-info
