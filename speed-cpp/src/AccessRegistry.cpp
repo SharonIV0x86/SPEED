@@ -85,7 +85,7 @@ void AccessRegistry::addProcessToList(const std::string &proc_name) {
   }
   // Safe add
   allowedProcesses_.insert(proc_name);
-  connect_to(proc_name);
+  // connect_to(proc_name);
 }
 bool AccessRegistry::connect_to(const std::string &proc_name) {
   if (connected_list_.find(proc_name) != connected_list_.end()) {

@@ -10,20 +10,28 @@ bool BinaryManager::writeBinary(const Message &msg,
   const long long seq = seq_number.load();
   const std::string uuid = Utils::generateUUID();
   const std::string timestamp = Utils::getCurrentTimestamp();
+
+  // Use proc_name only for folder + filename prefix, safe characters
   std::filesystem::path before_path =
       path / proc_name /
-      (timestamp + "_" + proc_name + "_" + std::to_string(seq_number) + "_" +
-       uuid + ".ispeed");
+      (timestamp + "_" + proc_name + "_" + std::to_string(seq) + "_" + uuid +
+       ".ispeed");
+
   std::filesystem::path after_path =
       path / proc_name /
-      (timestamp + "_" + proc_name + "_" + std::to_string(seq_number) + "_" +
-       uuid + ".ospeed");
+      (timestamp + "_" + proc_name + "_" + std::to_string(seq) + "_" + uuid +
+       ".ospeed");
+
+  // Create folder if it doesn't exist
+  if (!std::filesystem::exists(before_path.parent_path())) {
+    std::filesystem::create_directories(before_path.parent_path());
+  }
 
   std::ofstream out(before_path, std::ios::binary);
   if (!out)
     return false;
 
-  // Write header fields
+  // Write header
   write_uint(out, msg.header.version);
   write_uint(out, static_cast<uint8_t>(msg.header.type));
   write_uint(out, msg.header.sender_pid);
@@ -41,7 +49,10 @@ bool BinaryManager::writeBinary(const Message &msg,
             msg.payload.size());
 
   out.close();
+
+  // Rename atomically
   std::rename(before_path.c_str(), after_path.c_str());
+
   return true;
 }
 
@@ -52,7 +63,6 @@ Message BinaryManager::readBinary(const std::filesystem::path &path) {
 
   Message msg;
 
-  // Read header fields
   msg.header.version = read_uint<uint8_t>(in);
   msg.header.type = static_cast<MessageType>(read_uint<uint8_t>(in));
   msg.header.sender_pid = read_uint<uint32_t>(in);
@@ -61,11 +71,9 @@ Message BinaryManager::readBinary(const std::filesystem::path &path) {
   msg.header.sender = read_string(in);
   msg.header.reciever = read_string(in);
 
-  // Read nonce (24 bytes)
   in.read(reinterpret_cast<char *>(msg.header.nonce.data()),
           msg.header.nonce.size());
 
-  // Read payload
   uint32_t len = read_uint<uint32_t>(in);
   msg.payload.resize(len);
   in.read(reinterpret_cast<char *>(msg.payload.data()), len);

@@ -14,8 +14,8 @@ int main(){
     // std::cout << "Hello world\n";
     SPEED::SPEED spd("Proc_1", SPEED::ThreadMode::Multi);
     spd.setCallback(user_callback);
-    spd.addProcess("Proc_2");
     spd.setKeyFile("/home/jasper/Development/SPEED/speed-cpp/config.key");
+    spd.addProcess("Proc_2");
     spd.start();
     while (true) {
         std::string s;
