@@ -109,7 +109,7 @@ void SPEED::kill() {
     Message exit_message = Message::construct_EXIT_NOTIF(entry);
     exit_message.header.seq_num = seq_number_;
     exit_message.header.sender = self_proc_name_;
-    EncryptionManager::Encrypt(exit_message, k);
+    // EncryptionManager::Encrypt(exit_message, k);
     BinaryManager::writeBinary(exit_message, speed_dir_, seq_number_, entry);
 
     seq_number_.fetch_add(1, std::memory_order_relaxed);
@@ -141,7 +141,7 @@ void SPEED::sendMessage(const std::string &msg,
     std::cout << "[ERROR] Message validation failed! Before." << "\n";
     Message::print_message(message);
   }
-  EncryptionManager::Encrypt(message, k);
+  // EncryptionManager::Encrypt(message, k);
   BinaryManager::writeBinary(message, speed_dir_, seq_number_, reciever_name);
 
   seq_number_.fetch_add(1, std::memory_order_relaxed);
@@ -152,7 +152,7 @@ void SPEED::processFile_(const std::filesystem::path &file_path) {
   std::lock_guard<std::mutex> lock(callback_mutex_);
   Message msg = BinaryManager::readBinary(file_path);
   std::vector<uint64_t> k(key_.begin(), key_.end());
-  EncryptionManager::Decrypt(msg, k);
+  // EncryptionManager::Decrypt(msg, k);
   if (!Message::validate_message_recieved(msg, self_proc_name_)) {
     std::cout << "[ERROR]: Invalid Message recieved! Not Processing.\n";
     Message::print_message(msg);
@@ -270,7 +270,7 @@ void SPEED::ping_(const std::string &reciever_name) {
   ping_message.header.seq_num = seq_number_;
   ping_message.header.sender = self_proc_name_;
   std::vector<uint64_t> k(key_.begin(), key_.end());
-  EncryptionManager::Encrypt(ping_message, k);
+  // EncryptionManager::Encrypt(ping_message, k);
   BinaryManager::writeBinary(ping_message, speed_dir_, seq_number_,
                              reciever_name);
   seq_number_.fetch_add(1, std::memory_order_relaxed);
@@ -281,7 +281,7 @@ void SPEED::pong_(const std::string &reciever_name) {
   pong_message.header.sender = self_proc_name_;
   std::cout << "\n[INFO]: Sending a PONG to: " << reciever_name << "\n";
   std::vector<uint64_t> k(key_.begin(), key_.end());
-  EncryptionManager::Encrypt(pong_message, k);
+  // EncryptionManager::Encrypt(pong_message, k);
   BinaryManager::writeBinary(pong_message, speed_dir_, seq_number_,
                              reciever_name);
   seq_number_.fetch_add(1, std::memory_order_relaxed);

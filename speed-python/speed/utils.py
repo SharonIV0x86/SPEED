@@ -8,14 +8,16 @@ from typing import Optional
 class Utils:
     @staticmethod
     def get_default_speed_dir() -> Path:
-        """Get the default SPEED directory based on OS"""
+        """Get the default SPEED directory based on OS."""
         if platform.system() == "Windows":
             base_dir = Path(os.environ.get('LOCALAPPDATA', Path.home() / 'AppData' / 'Local'))
+            speed_dir = base_dir / ".speed"
         else:
-            base_dir = Path.home()
-        
-        return base_dir / ".speed"
-    
+            # Use /tmp/speed and create it if it doesn't exist
+            speed_dir = Path("/tmp/speed")
+            speed_dir.mkdir(parents=True, exist_ok=True)
+
+        return speed_dir    
     @staticmethod
     def get_current_timestamp() -> str:
         """Get current timestamp in ISO format"""
