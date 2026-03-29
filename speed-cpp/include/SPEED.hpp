@@ -107,6 +107,18 @@ private:
     size_t max_q = 256;
     std::chrono::milliseconds idle_timeout{5000};
   };
+  enum class PeerState {
+    DISCONNECTED,   // Known, but no connection attempt
+    CONNECTING,     // CON_REQ sent, waiting for CON_RES
+    CONNECTED,      // Handshake done, can exchange messages
+    EXITED          // Peer sent EXIT_NOTIF or disappeared
+};
+struct PeerInfo {
+    PeerState state;
+    std::chrono::steady_clock::time_point last_seen;
+};
+
+
 
   ThreadMode tmode_;
   std::filesystem::path speed_dir_;
@@ -136,6 +148,7 @@ private:
   std::thread watcher_thread_;
   std::atomic<bool> watcher_running_{false};
   std::atomic<bool> watcher_should_exit_{false};
+  std::atomic<bool> alive = false;
 
   void watcherSingleThread_(); // blocking call for single-thread mode
   void watcherMultiThread_();  // non-blocking call for multi-thread mode
@@ -159,6 +172,9 @@ private:
       executors_;
   std::unordered_map<std::string, std::map<long long, std::filesystem::path>>
       sender_buffers_;
+      std::unordered_map<std::string, PeerInfo> peer_state_;
+std::mutex peer_state_mutex_;
+
 };
 
 } // namespace SPEED

@@ -33,6 +33,7 @@ int main(){
             }
             else if(s == "--kill"){
                 spd.kill();
+                break;
             }
             else if(s == "--getGR"){
                 spd.printGlobalRegistry_();

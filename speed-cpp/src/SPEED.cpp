@@ -88,6 +88,7 @@ bool SPEED::addProcess(const std::string &proc_name) {
 }
 
 void SPEED::start() {
+  alive.store(true);
   watcher_should_exit_.store(false);
 
   if (watcher_running_.load())
@@ -115,6 +116,7 @@ void SPEED::resume() {
 }
 
 void SPEED::kill() {
+  alive.store(false);
   watcher_should_exit_.store(true);
   watcher_running_.store(false);
   access_list_->removeAccessFile();
@@ -134,66 +136,67 @@ void SPEED::kill() {
 }
 
 void SPEED::sendMessage(const std::string &msg,
-                        const std::string &reciever_name) {
-  if (!access_list_->checkGlobalRegistry(reciever_name)) {
-    std::cout << "[WARN] Process: " << reciever_name
-              << " not in global registry list" << "\n";
-    access_list_->incrementalBuildGlobalRegistry();
-    std::cout << "[ERROR]: Cannot send Message to: " << reciever_name
-              << " as it is not in Global Registry\n";
+                        const std::string &receiver_name) {
+  if (!alive.load(std::memory_order_acquire)) {
     return;
   }
-  if (!access_list_->checkAccess(reciever_name)) {
-    std::cout << "[WARN] Process: " << reciever_name << " not in access list"
-              << "\n";
-    std::cout << "[ERROR]: Cannot send Message to: " << reciever_name
-              << " as it is not in Access List\n";
-    return;
-  }
-  if (!access_list_->check_connection(reciever_name)) {
-    std::cout << "[WARN] Process: " << reciever_name
-              << " not in connection list" << "\n";
-    std::cout << "[ERROR]: Cannot send Message to: " << reciever_name
-              << " as it is not in Connection List\n";
-    Message con_req_message = MessageUtils::construct_CON_REQ(msg);
-    con_req_message.header.seq_num =
-        seq_number_.load(std::memory_order_relaxed);
-    con_req_message.header.sender = self_proc_name_;
-    con_req_message.header.reciever = reciever_name;
+
+  // 1. Fast path: already connected → send message
+  if (access_list_->check_connection(receiver_name)) {
+    Message message = MessageUtils::construct_MSG(msg);
+    message.header.seq_num = seq_number_.load(std::memory_order_relaxed);
+    message.header.sender = self_proc_name_;
+    message.header.reciever = receiver_name;
+
     std::vector<uint64_t> k(key_.begin(), key_.end());
-    if (!MessageUtils::validate_message_sent(con_req_message, self_proc_name_,
-                                             con_req_message.header.sender)) {
-      std::cout << "[ERROR]: Messsage validation! Before. \n";
-      MessageUtils::print_message(con_req_message);
+    if (!MessageUtils::validate_message_sent(message, self_proc_name_,
+                                             receiver_name)) {
+      std::cerr << "[ERROR] Message validation failed\n";
+      MessageUtils::print_message(message);
       return;
     }
-    EncryptionManager::Encrypt(con_req_message, k);
-    BinaryManager::writeBinary(con_req_message, speed_dir_, seq_number_,
-                               con_req_message.header.sender);
+
+    EncryptionManager::Encrypt(message, k);
+    BinaryManager::writeBinary(message, speed_dir_, seq_number_, receiver_name);
+
     seq_number_.fetch_add(1, std::memory_order_relaxed);
-    std::cout << "[INFO]: Connection Request sent to: " << reciever_name
-              << "\n";
-  }
-  Message message = MessageUtils::construct_MSG(msg);
-
-  // load numeric seq value from atomic
-  message.header.seq_num = seq_number_.load(std::memory_order_relaxed);
-
-  message.header.sender = self_proc_name_;
-  message.header.reciever = reciever_name;
-  std::vector<uint64_t> k(key_.begin(), key_.end());
-  if (!MessageUtils::validate_message_sent(message, self_proc_name_,
-                                           reciever_name)) {
-    std::cout << "[ERROR] Message validation failed! Before." << "\n";
-    MessageUtils::print_message(message);
     return;
   }
-  EncryptionManager::Encrypt(message, k);
-  BinaryManager::writeBinary(message, speed_dir_, seq_number_, reciever_name);
 
-  // advance the sender's local sequence number
-  seq_number_.fetch_add(1, std::memory_order_relaxed);
+  // 2. Not connected but allowed → send connection request
+  if (access_list_->checkAccess(receiver_name)) {
+    Message con_req = MessageUtils::construct_CON_REQ(receiver_name);
+    con_req.header.seq_num = seq_number_.load(std::memory_order_relaxed);
+    con_req.header.sender = self_proc_name_;
+    con_req.header.reciever = receiver_name;
+
+    std::vector<uint64_t> k(key_.begin(), key_.end());
+    if (!MessageUtils::validate_message_sent(con_req, self_proc_name_,
+                                             receiver_name)) {
+      std::cerr << "[ERROR] CON_REQ validation failed\n";
+      MessageUtils::print_message(con_req);
+      return;
+    }
+
+    EncryptionManager::Encrypt(con_req, k);
+    BinaryManager::writeBinary(con_req, speed_dir_, seq_number_, receiver_name);
+
+    seq_number_.fetch_add(1, std::memory_order_relaxed);
+
+    {
+      std::lock_guard<std::mutex> lk(con_res_buffer_mtx_);
+      con_res_buffer.insert(receiver_name);
+    }
+
+    std::cout << "[INFO] Connection request sent to: " << receiver_name << "\n";
+    return;
+  }
+
+  // 3. Not connected and not allowed → silently ignore
+  std::cout << "[INFO] Ignoring sendMessage to disallowed process: "
+            << receiver_name << "\n";
 }
+
 void SPEED::runWatcherLoop_() {
   while (!watcher_should_exit_.load()) {
     // Scan all new files in our inbox directory
@@ -230,116 +233,135 @@ void SPEED::runWatcherLoop_() {
 }
 
 void SPEED::processFile_(const std::filesystem::path &file_path) {
+  const std::string filename = file_path.filename().string();
+
+  auto cleanup = [&]() {
+    std::error_code ec;
+    std::filesystem::remove(file_path, ec);
+    if (ec) {
+      std::cerr << "[WARN]: Failed to remove file: " << file_path << " -> "
+                << ec.message() << "\n";
+    }
+    std::lock_guard<std::mutex> lk(seen_mutex_);
+    seen_.erase(filename);
+  };
+
   Message msg;
+
+  // 1. Read binary message
   try {
     msg = BinaryManager::readBinary(file_path);
   } catch (const std::exception &e) {
     std::cerr << "[SPEED] Failed to read file " << file_path << ": " << e.what()
               << "\n";
-    std::lock_guard<std::mutex> lk(seen_mutex_);
-    seen_.erase(file_path.filename().string());
+    cleanup();
     return;
   }
 
-  std::vector<uint64_t> k(key_.begin(), key_.end());
+  // 2. Decrypt message
   try {
+    std::vector<uint64_t> k(key_.begin(), key_.end());
     EncryptionManager::Decrypt(msg, k);
   } catch (const std::exception &e) {
     std::cerr << "[SPEED] Decrypt failed for " << file_path << ": " << e.what()
               << "\n";
-    std::lock_guard<std::mutex> lk(seen_mutex_);
-    seen_.erase(file_path.filename().string());
+    cleanup();
     return;
   }
 
+  // 3. Validate message
   if (!MessageUtils::validate_message_recieved(msg, self_proc_name_)) {
-    std::cerr << "[ERROR]: Invalid Message received! Not Processing.\n";
+    std::cerr << "[ERROR]: Invalid message received. Dropping.\n";
     MessageUtils::print_message(msg);
-    std::lock_guard<std::mutex> lk(seen_mutex_);
-    seen_.erase(file_path.filename().string());
+    cleanup();
     return;
   }
 
-  // Handle message types
+  // 4. Dispatch based on message type
   switch (msg.header.type) {
+
   case MessageType::MSG: {
-    PMessage mm = MessageUtils::destruct_message(msg);
+    PMessage payload = MessageUtils::destruct_message(msg);
     std::lock_guard<std::mutex> lock(callback_mutex_);
-    callback_(mm);
+    if (callback_) {
+      callback_(payload);
+    }
     break;
   }
+
   case MessageType::EXIT_NOTIF: {
-    std::lock_guard<std::mutex> lk(access_list_mutex_);
+    std::lock_guard<std::mutex> lock(access_list_mutex_);
     access_list_->removeProcessFromGlobalRegistry(msg.header.sender);
-    access_list_->removeProcessFromAccessList(msg.header.sender);
+    // access_list_->removeProcessFromAccessList(msg.header.sender);
     access_list_->removeProcessFromConnectedList(msg.header.sender);
-    std::cout << "[DEBUG]: Received EXIT_NOTIF for: " << msg.header.sender
-              << "\n";
+    std::cout << "[INFO]: Process exited: " << msg.header.sender << "\n";
     break;
   }
+
   case MessageType::CON_REQ: {
-    std::cout << "\n[INFO]: Recieved Connection Request from: "
-              << msg.header.sender << "\n";
-    auto accessList = access_list_->getAccessList();
-    if (accessList.find(msg.header.sender) != accessList.end()) {
-      std::cout << "\n[INFO]: Found sender: " << msg.header.sender
-                << " in access list\n";
-      Message message = MessageUtils::construct_CON_RES(msg.header.sender);
-      message.header.seq_num = seq_number_.load(std::memory_order_relaxed);
-      message.header.sender = self_proc_name_;
-      message.header.reciever = msg.header.sender;
-      std::vector<uint64_t> k(key_.begin(), key_.end());
-      if (!MessageUtils::validate_message_sent(message, self_proc_name_,
-                                               msg.header.sender)) {
-        std::cout << "[ERROR]: Messsage validation! Before. \n";
-        MessageUtils::print_message(message);
-        break;
-      }
-      EncryptionManager::Encrypt(message, k);
-      BinaryManager::writeBinary(message, speed_dir_, seq_number_,
-                                 msg.header.sender);
-      seq_number_.fetch_add(1, std::memory_order_relaxed);
-    } else {
-      std::cout << "[ERROR]: Did not find sender: " << msg.header.sender
-                << " in access list\n";
+    std::cout << "[INFO]: Connection request from: " << msg.header.sender
+              << "\n";
+
+    auto allowed = access_list_->getAccessList();
+    if (allowed.find(msg.header.sender) == allowed.end()) {
+      std::cout << "[WARN]: Sender not in access list: " << msg.header.sender
+                << "\n";
+      break;
     }
+
+    Message response = MessageUtils::construct_CON_RES(msg.header.sender);
+    response.header.seq_num = seq_number_.load(std::memory_order_relaxed);
+    response.header.sender = self_proc_name_;
+    response.header.reciever = msg.header.sender;
+
+    if (!MessageUtils::validate_message_sent(response, self_proc_name_,
+                                             msg.header.sender)) {
+      std::cerr << "[ERROR]: CON_RES validation failed\n";
+      MessageUtils::print_message(response);
+      break;
+    }
+
+    std::vector<uint64_t> k(key_.begin(), key_.end());
+    EncryptionManager::Encrypt(response, k);
+    BinaryManager::writeBinary(response, speed_dir_, seq_number_,
+                               msg.header.sender);
+
+    seq_number_.fetch_add(1, std::memory_order_relaxed);
     break;
   }
+
   case MessageType::CON_RES: {
-    std::lock_guard<std::mutex> lk(con_res_buffer_mtx_);
-    std::cout << "\n[INFO]: Recieved Connection Response from: "
-              << msg.header.sender << "\n";
-    const std::string con_response_from = msg.header.sender;
-    if (con_res_buffer.find(con_response_from) != con_res_buffer.end()) {
-      std::cout << "\n[INFO]: Found Connection Response In Buffer from: "
-                << msg.header.sender << "\n";
-      con_res_buffer.erase(con_response_from);
-      access_list_->connect_to(con_response_from);
+    std::lock_guard<std::mutex> lock(con_res_buffer_mtx_);
+    auto it = con_res_buffer.find(msg.header.sender);
+    if (it != con_res_buffer.end()) {
+      con_res_buffer.erase(it);
+      access_list_->connect_to(msg.header.sender);
+      std::cout << "[INFO]: Connection established with: " << msg.header.sender
+                << "\n";
     }
     break;
   }
+
   case MessageType::PING:
     pong(msg.header.sender);
     break;
+
   case MessageType::PONG: {
-    PMessage mm = MessageUtils::destruct_message(msg);
+    PMessage payload = MessageUtils::destruct_message(msg);
     std::lock_guard<std::mutex> lock(callback_mutex_);
-    callback_(mm);
+    if (callback_) {
+      callback_(payload);
+    }
     break;
   }
+
   default:
+    std::cerr << "[WARN]: Unknown message type received\n";
     break;
   }
 
-  // Always remove file safely
-  std::error_code ec;
-  std::filesystem::remove(file_path, ec);
-  if (ec)
-    std::cerr << "[WARN]: Failed to remove file: " << file_path << " -> "
-              << ec.message() << "\n";
-
-  std::lock_guard<std::mutex> lock(seen_mutex_);
-  seen_.erase(file_path.filename().string());
+  // 5. Final cleanup
+  cleanup();
 }
 
 void SPEED::enqueueTaskForSender(const std::string &sender, Task task) {

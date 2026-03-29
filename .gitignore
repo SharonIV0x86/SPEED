@@ -4,4 +4,5 @@
 *.bin
 speed-cpp/app
 speed-cpp/build
-
+proc1
+proc2
